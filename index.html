@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>АвтоМаркет</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Верхняя панель -->
+    <header class="header">
+        <div class="header-content">
+            <span class="header-icon">🚗</span>
+            <h1 class="header-title">АвтоМаркет</h1>
+        </div>
+    </header>
+
+    <!-- Основной контент -->
+    <main class="main-content">
+        <!-- Поиск -->
+        <div class="search-section">
+            <div class="search-box">
+                <span class="search-icon">🔍</span>
+                <input 
+                    type="text" 
+                    id="searchInput" 
+                    class="search-input" 
+                    placeholder="Марка, модель или запрос..."
+                >
+            </div>
+        </div>
+
+        <!-- Фильтры -->
+        <div class="filters-section">
+            <div class="filters-scroll">
+                <button class="filter-chip active" data-filter="all">Все авто</button>
+                <button class="filter-chip" data-filter="price" id="priceFilter">Цена до...</button>
+                <button class="filter-chip" data-filter="used">С пробегом</button>
+                <button class="filter-chip" data-filter="year" id="yearFilter">Год от...</button>
+                <button class="filter-chip" data-filter="city" id="cityFilter">Город</button>
+            </div>
+        </div>
+
+        <!-- Модальное окно фильтра цены -->
+        <div id="priceModal" class="modal">
+            <div class="modal-content">
+                <h3>Цена до (₽)</h3>
+                <input type="number" id="priceInput" placeholder="Например: 1500000">
+                <div class="modal-buttons">
+                    <button class="btn-secondary" onclick="closeModal('priceModal')">Отмена</button>
+                    <button class="btn-primary" onclick="applyPriceFilter()">Применить</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Модальное окно фильтра года -->
+        <div id="yearModal" class="modal">
+            <div class="modal-content">
+                <h3>Год от</h3>
+                <input type="number" id="yearInput" placeholder="Например: 2015" min="1990" max="2025">
+                <div class="modal-buttons">
+                    <button class="btn-secondary" onclick="closeModal('yearModal')">Отмена</button>
+                    <button class="btn-primary" onclick="applyYearFilter()">Применить</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Модальное окно фильтра города -->
+        <div id="cityModal" class="modal">
+            <div class="modal-content">
+                <h3>Выберите город</h3>
+                <select id="citySelect" class="city-select">
+                    <option value="">Все города</option>
+                    <option value="Москва">Москва</option>
+                    <option value="Санкт-Петербург">Санкт-Петербург</option>
+                    <option value="Казань">Казань</option>
+                    <option value="Новосибирск">Новосибирск</option>
+                    <option value="Екатеринбург">Екатеринбург</option>
+                    <option value="Краснодар">Краснодар</option>
+                </select>
+                <div class="modal-buttons">
+                    <button class="btn-secondary" onclick="closeModal('cityModal')">Отмена</button>
+                    <button class="btn-primary" onclick="applyCityFilter()">Применить</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Топ объявления -->
+        <section class="section">
+            <h2 class="section-title">🔥 Топ объявления</h2>
+            <div id="topListings" class="listings-grid"></div>
+        </section>
+
+        <!-- Новые поступления -->
+        <section class="section">
+            <h2 class="section-title">✨ Новые поступления</h2>
+            <div id="newListings" class="listings-grid"></div>
+        </section>
+
+        <!-- Детальная страница авто -->
+        <div id="detailPage" class="detail-page hidden">
+            <div class="detail-header">
+                <button class="back-button" onclick="closeDetailPage()">← Назад</button>
+            </div>
+            <div id="detailContent" class="detail-content"></div>
+        </div>
+    </main>
+
+    <!-- Нижняя панель навигации -->
+    <nav class="bottom-nav">
+        <button class="nav-button active" data-page="main" onclick="navigateTo('main')">
+            <span class="nav-icon">🏠</span>
+            <span class="nav-label">Главная</span>
+        </button>
+        <button class="nav-button" data-page="add" onclick="navigateTo('add')">
+            <span class="nav-icon">➕</span>
+            <span class="nav-label">Подать</span>
+        </button>
+        <button class="nav-button" data-page="messages" onclick="navigateTo('messages')">
+            <span class="nav-icon">💬</span>
+            <span class="nav-label">Сообщения</span>
+        </button>
+        <button class="nav-button" data-page="favorites" onclick="navigateTo('favorites')">
+            <span class="nav-icon">❤️</span>
+            <span class="nav-label">Избранное</span>
+        </button>
+    </nav>
+
+    <!-- Подключение Telegram WebApp API -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <!-- Подключение основного скрипта -->
+    <script src="script.js"></script>
+</body>
+</html>
