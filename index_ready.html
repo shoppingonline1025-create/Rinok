@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>АвтоМаркет</title>
+<style>
+body{margin:0;font-family:Arial;background:#121212;color:#fff}
+header{padding:12px;background:#1f1f1f;font-size:20px}
+.filters{display:flex;gap:8px;overflow-x:auto;padding:10px}
+.filters select,.filters button{padding:8px;border-radius:8px;border:none}
+.list{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;padding:10px}
+.card{background:#1e1e1e;padding:10px;border-radius:10px}
+.price{color:#4a9eff;font-weight:bold}
+select{column-count:2;max-height:240px}
+</style>
+</head>
+<body>
+
+<header>🚗 АвтоМаркет</header>
+
+<div class="filters">
+<select id="brand"></select>
+<select id="model"></select>
+<select id="price">
+<option value="">Цена</option>
+<option value="0-3000">до 3000</option>
+<option value="3000-6000">3000–6000</option>
+<option value="6000-10000">6000–10000</option>
+</select>
+<button onclick="clearOne('price')">❌ Цена</button>
+<button onclick="clearOne('model')">❌ Модель</button>
+</div>
+
+<div id="list" class="list"></div>
+
+<script>
+const BRANDS={
+ BMW:['X1','X3','X5'],
+ Audi:['A4','A6','Q5'],
+ Mercedes:['C-Class','E-Class','GLC'],
+ Toyota:['Corolla','Camry','RAV4'],
+ Volkswagen:['Golf','Passat','Tiguan']
+};
+
+const cars=[
+ {brand:'BMW',model:'X3',price:3500},
+ {brand:'BMW',model:'X5',price:5200},
+ {brand:'Audi',model:'A6',price:4200},
+ {brand:'Toyota',model:'Camry',price:3000},
+ {brand:'Toyota',model:'RAV4',price:4800},
+ {brand:'Volkswagen',model:'Passat',price:2600},
+ {brand:'Mercedes',model:'E-Class',price:6100},
+ {brand:'Audi',model:'Q5',price:5500},
+ {brand:'BMW',model:'X1',price:2800},
+ {brand:'Volkswagen',model:'Golf',price:2300},
+ // +30 для наглядности
+ {brand:'BMW',model:'X3',price:3700},
+ {brand:'BMW',model:'X5',price:6000},
+ {brand:'Audi',model:'A4',price:3100},
+ {brand:'Audi',model:'A6',price:4500},
+ {brand:'Toyota',model:'Corolla',price:2200},
+ {brand:'Toyota',model:'Camry',price:3300},
+ {brand:'Toyota',model:'RAV4',price:5000},
+ {brand:'Mercedes',model:'C-Class',price:2900},
+ {brand:'Mercedes',model:'GLC',price:6200},
+ {brand:'Volkswagen',model:'Tiguan',price:4700}
+];
+
+const filters={brand:'',model:'',price:''};
+
+const brandSel=document.getElementById('brand');
+const modelSel=document.getElementById('model');
+const priceSel=document.getElementById('price');
+const list=document.getElementById('list');
+
+function init(){
+ brandSel.innerHTML='<option value="">Марка</option>';
+ Object.keys(BRANDS).forEach(b=>brandSel.innerHTML+=`<option>${b}</option>`);
+ render();
+}
+
+brandSel.onchange=()=>{
+ filters.brand=brandSel.value;
+ filters.model='';
+ modelSel.innerHTML='<option value="">Модель</option>';
+ if(filters.brand){
+  BRANDS[filters.brand].forEach(m=>modelSel.innerHTML+=`<option>${m}</option>`);
+ }
+ render();
+};
+
+modelSel.onchange=()=>{filters.model=modelSel.value;render();};
+priceSel.onchange=()=>{filters.price=priceSel.value;render();};
+
+function clearOne(type){
+ filters[type]='';
+ if(type==='price')priceSel.value='';
+ if(type==='model')modelSel.value='';
+ render();
+}
+
+function render(){
+ list.innerHTML='';
+ cars.filter(c=>{
+  if(filters.brand && c.brand!==filters.brand)return false;
+  if(filters.model && c.model!==filters.model)return false;
+  if(filters.price){
+   let [a,b]=filters.price.split('-').map(Number);
+   if(c.price<a||c.price>b)return false;
+  }
+  return true;
+ }).forEach(c=>{
+  list.innerHTML+=`<div class="card">
+   <div>${c.brand} ${c.model}</div>
+   <div class="price">$${c.price}</div>
+  </div>`;
+ });
+}
+
+init();
+</script>
+</body>
+</html>
