@@ -40,23 +40,21 @@ async function syncFromFirebase() {
         const data = await res.json();
 
         if (!data) {
-            // Firebase пуст — заливаем туда наши тестовые данные с sellerInfo
+            // Firebase полностью пуст — заливаем локальные данные
             const localCars = DB.getCars();
-            const enriched = enrichCarsWithSellerInfo(localCars);
-            await pushAllCarsToFirebase(enriched);
-            DB.saveCars(enriched);
-            cars = enriched;
-            render();
-        } else {
-            // Получаем массив машин из объекта Firebase {id: car}
-            let fbCars = Object.values(data).filter(Boolean);
-            // Если у машин нет sellerInfo — обогащаем и перезаливаем в Firebase
-            // Обогащаем если нет sellerInfo ИЛИ нет telegramId внутри него
-            const needsEnrich = fbCars.some(c => !c.sellerInfo || !c.sellerInfo.telegramId);
-            if (needsEnrich) {
-                fbCars = enrichCarsWithSellerInfo(fbCars);
-                await pushAllCarsToFirebase(fbCars);
+            if (localCars.length > 0) {
+                const enriched = enrichCarsWithSellerInfo(localCars);
+                await pushAllCarsToFirebase(enriched);
+                DB.saveCars(enriched);
+                cars = enriched;
+                render();
             }
+        } else {
+            // Получаем объявления из Firebase
+            let fbCars = Object.values(data).filter(Boolean);
+
+            // ВАЖНО: НЕ делаем bulk PUT — это затрёт чужие объявления!
+            // Просто обновляем локальный кеш данными из Firebase
             DB.saveCars(fbCars);
             localStorage.setItem('automarket_initialized', 'true');
             cars = fbCars;
@@ -1752,8 +1750,9 @@ function handleSubmit(e) {
         editingCarId = null;
     } else {
         // НОВОЕ ОБЪЯВЛЕНИЕ
-        const maxId = cars.length > 0 ? Math.max(...cars.map(c => c.id)) : 0;
-        carData.id = maxId + 1;
+        // Генерируем уникальный ID через timestamp + случайное число
+        // (защита от коллизий когда два пользователя добавляют одновременно)
+        carData.id = Date.now() * 1000 + Math.floor(Math.random() * 1000);
         carData.isTop = false;
         carData.createdAt = new Date().toISOString();
         
@@ -3346,4 +3345,7 @@ document.getElementById('searchInput').addEventListener('input', function(e) {
         checkListingViewsMilestones();
         checkListingAgeBonus();
     }, 2000);
+    // Периодическая синхронизация каждые 30 секунд
+    // чтобы видеть объявления других пользователей без перезапуска
+    setInterval(() => syncFromFirebase(), 30000);
 })();
