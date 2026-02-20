@@ -979,12 +979,12 @@ function makeCard(c) {
         ${imageHtml}
         <div class="car-info">
             ${c.category === 'parts' ? `
-                <div class="car-title">${c.partType} • ${c.brand}${c.model ? ' ' + c.model : ''}</div>
+                <div class="car-title">${c.partTitle || (c.partType + (c.brand ? ' • ' + c.brand : ''))}</div>
                 <div class="car-price">${fmt(c.price)} ${c.currency}</div>
                 <div class="car-details">
+                    <div><span class="detail-icon">🔧</span> ${c.partType}</div>
                     <div><span class="detail-icon">✅</span> Состояние: <strong>${c.condition}</strong></div>
                     <div><span class="detail-icon">📍</span> Город: <strong>${c.city}</strong></div>
-                    <div><span class="detail-icon">🚘</span> Регистрация: <strong>${c.registration}</strong></div>
                 </div>
             ` : `
                 <div class="car-title">${c.brand} ${c.model} ${c.year}</div>
@@ -1114,7 +1114,7 @@ function showDetail(id) {
     document.getElementById('detailContent').innerHTML = `
         ${galleryHtml}
         <div class="detail-info">
-            <div class="detail-title">${c.category === 'parts' ? c.partType + ' • ' + c.brand : c.brand + ' ' + c.model}</div>
+            <div class="detail-title">${c.category === 'parts' ? (c.partTitle || c.partType + ' • ' + c.brand) : c.brand + ' ' + c.model}</div>
             <div class="detail-price">${fmt(c.price)} ${c.currency}</div>
             <div class="contact-section">${contactButtons}</div>
             <div class="detail-section">
@@ -1122,6 +1122,7 @@ function showDetail(id) {
                 <div class="detail-specs">
                     <div class="detail-spec-item"><div class="detail-spec-label">Категория</div><div class="detail-spec-value">${categoryNames[c.category]}</div></div>
                     ${c.category === 'parts' ? `
+                        ${c.partTitle ? `<div class="detail-spec-item"><div class="detail-spec-label">Заголовок</div><div class="detail-spec-value">${c.partTitle}</div></div>` : ''}
                         <div class="detail-spec-item"><div class="detail-spec-label">Тип детали</div><div class="detail-spec-value">${c.partType}</div></div>
                         <div class="detail-spec-item"><div class="detail-spec-label">Для марки</div><div class="detail-spec-value">${c.brand}</div></div>
                         ${c.model ? `<div class="detail-spec-item"><div class="detail-spec-label">Модель</div><div class="detail-spec-value">${c.model}</div></div>` : ''}
@@ -1135,7 +1136,7 @@ function showDetail(id) {
                         ${c.drive ? `<div class="detail-spec-item"><div class="detail-spec-label">Привод</div><div class="detail-spec-value">${c.drive}</div></div>` : ''}
                     `}
                     <div class="detail-spec-item"><div class="detail-spec-label">Город</div><div class="detail-spec-value">${c.city}</div></div>
-                    <div class="detail-spec-item"><div class="detail-spec-label">Регистрация</div><div class="detail-spec-value">${c.registration}</div></div>
+                    ${c.category !== 'parts' ? `<div class="detail-spec-item"><div class="detail-spec-label">Регистрация</div><div class="detail-spec-value">${c.registration || '—'}</div></div>` : ''}
                 </div>
             </div>
             <div class="detail-section">
@@ -1662,12 +1663,17 @@ function handleSubmit(e) {
     if (category === 'parts') {
         const partType = document.getElementById('partType')?.value;
         const condition = document.getElementById('condition')?.value;
+        const partTitle = document.getElementById('partTitle')?.value?.trim();
         if (!partType) {
             tg.showAlert('Укажите тип детали');
             return;
         }
         if (!condition) {
             tg.showAlert('Укажите состояние');
+            return;
+        }
+        if (!partTitle) {
+            tg.showAlert('Укажите заголовок объявления');
             return;
         }
     }
@@ -1685,10 +1691,11 @@ function handleSubmit(e) {
         photos: [...uploadedPhotos],
         video: uploadedVideo,
         userId: currentUser.id,
-        // Для запчастей добавляем partType и condition
+        // Для запчастей добавляем partType, condition и заголовок
         ...(category === 'parts' ? {
             partType: document.getElementById('partType').value,
-            condition: document.getElementById('condition').value
+            condition: document.getElementById('condition').value,
+            partTitle: document.getElementById('partTitle').value.trim()
         } : {
             // Для транспорта добавляем специфичные поля
             year: parseInt(document.getElementById('year').value),
@@ -1760,6 +1767,8 @@ function handleSubmit(e) {
     document.getElementById('videoPreview').innerHTML = '';
     document.getElementById('formBrandInput').value = '';
     document.getElementById('formModelInput').value = '';
+    const partTitleEl = document.getElementById('partTitle');
+    if (partTitleEl) partTitleEl.value = '';
     // Сбрасываем телефон (reset не трогает его если он был заполнен вручную)
     const phoneElClear = document.getElementById('listingPhone');
     if (phoneElClear) phoneElClear.value = '';
@@ -2547,6 +2556,9 @@ function updateFormBrandOptions() {
     
     if (partTypeGr) partTypeGr.style.display = isParts ? 'flex' : 'none';
     if (conditionGr) conditionGr.style.display = isParts ? 'flex' : 'none';
+    
+    const partTitleGr = document.getElementById('partTitleGroup');
+    if (partTitleGr) partTitleGr.style.display = isParts ? 'flex' : 'none';
     
     // Для parts скрываем год, пробег, двигатель, КПП, топливо, привод, регистрацию
     const vehicleFields = ['year', 'mileage', 'engine', 'transmission', 'fuel', 'drive', 'registration'];
