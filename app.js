@@ -118,9 +118,9 @@ async function syncFromFirebase() {
             }
         });
 
-        DB.saveCars(merged);
+        DB.saveCars(merged);  // умное сохранение: своё с фото, чужое без фото
         localStorage.setItem('automarket_initialized', 'true');
-        cars = merged;
+        cars = merged; // в памяти — полные данные включая чужие фото из Firebase
         render();
 
         setSyncStatus('ok', `${merged.length} объявл. · ${_lastSyncTime.toLocaleTimeString('ru-RU')} · Нажмите для обновления`);
@@ -299,37 +299,75 @@ if (tg.disableVerticalSwipes) {
 }
 
 const DB = {
+    // Получить все машины (из памяти или localStorage как fallback)
     getCars: function() {
         const stored = localStorage.getItem('automarket_cars');
         const initialized = localStorage.getItem('automarket_initialized');
         
-        // Если данные уже были инициализированы - возвращаем их
         if (initialized && stored) {
-            return JSON.parse(stored);
+            try { return JSON.parse(stored); } catch(e) { return []; }
         }
         
-        // Первая инициализация - загружаем тестовые данные
+        // Первая инициализация — загружаем тестовые данные
         if (!initialized) {
             const initial = initCarsData();
-            this.saveCars(initial);
+            this.saveMyCars(initial, null); // сохраняем без фильтрации на старте
             localStorage.setItem('automarket_initialized', 'true');
-            console.log('Первая инициализация БД - загружено', initial.length, 'объявлений');
             return initial;
         }
         
-        // Если нет stored но есть initialized - что-то пошло не так
         return [];
     },
     
-    saveCars: function(cars) {
-        localStorage.setItem('automarket_cars', JSON.stringify(cars));
-        console.log('Сохранено в БД:', cars.length, 'объявлений');
+    // Сохранить ВСЕ машины в localStorage — только свои, без чужих фото
+    // Чужие объявления живут только в памяти (cars), не в localStorage
+    saveCars: function(carsArr) {
+        const userId = currentUser?.id;
+        if (!userId) {
+            // Нет пользователя — сохраняем только без фото (эконом режим)
+            this._saveCompact(carsArr);
+            return;
+        }
+        // Сохраняем только объявления текущего пользователя (с фото)
+        // Остальные — без фото (только метаданные), чтобы не превысить лимит
+        const toSave = carsArr.map(c => {
+            if (c.userId == userId) return c; // своё — полностью
+            // Чужое — без фото и видео (они занимают всё место)
+            const { photos, video, ...meta } = c;
+            return meta;
+        });
+        this._saveCompact(toSave);
+    },
+    
+    // Сохранить только свои машины (при публикации/редактировании)
+    saveMyCars: function(carsArr, userId) {
+        try {
+            localStorage.setItem('automarket_cars', JSON.stringify(carsArr));
+        } catch(e) {
+            console.warn('localStorage quota: сохраняем без фото');
+            // Если всё равно не влезает — сохраняем без фото
+            const stripped = carsArr.map(c => { const {photos,video,...m}=c; return m; });
+            try { localStorage.setItem('automarket_cars', JSON.stringify(stripped)); } catch(e2) {}
+        }
+    },
+
+    _saveCompact: function(carsArr) {
+        try {
+            localStorage.setItem('automarket_cars', JSON.stringify(carsArr));
+        } catch(e) {
+            console.warn('localStorage quota exceeded, stripping photos from all');
+            // Последний резерв — сохраняем вообще без фото
+            const stripped = carsArr.map(c => { const {photos,video,...m}=c; return m; });
+            try { localStorage.setItem('automarket_cars', JSON.stringify(stripped)); } catch(e2) {
+                console.error('Не удалось сохранить даже без фото:', e2);
+            }
+        }
     },
     
     deleteCar: function(carId) {
         let cars = this.getCars();
         cars = cars.filter(c => c.id !== carId);
-        this.saveCars(cars);
+        this.saveMyCars(cars, currentUser?.id);
         return cars;
     },
     
@@ -338,7 +376,7 @@ const DB = {
         const index = cars.findIndex(c => c.id === carId);
         if (index !== -1) {
             cars[index] = {...cars[index], ...updates};
-            this.saveCars(cars);
+            this.saveMyCars(cars, currentUser?.id);
         }
         return cars;
     },
