@@ -170,7 +170,14 @@ async function syncUserFromFirebase(user) {
         balance: fbUser.balance ?? user.balance ?? 0,
         transactions: normalizeFirebaseArray(fbUser.transactions ?? user.transactions),
         subscriptions: fbSubs,
-        freeBoostAvailableAt: fbUser.freeBoostAvailableAt ?? user.freeBoostAvailableAt ?? null
+        freeBoostAvailableAt: fbUser.freeBoostAvailableAt ?? user.freeBoostAvailableAt ?? null,
+        // Данные рейтинга — берём наибольшее (защита от отката)
+        ratingPoints:      Math.max(fbUser.ratingPoints  ?? 0, user.ratingPoints  ?? 0),
+        ratingLog:         fbUser.ratingLog     ?? user.ratingLog     ?? [],
+        ratingFlags:       fbUser.ratingFlags   ?? user.ratingFlags   ?? {},
+        streak:            fbUser.streak        ?? user.streak        ?? null,
+        boost12hActivated: fbUser.boost12hActivated ?? user.boost12hActivated ?? null,
+        tempTop:           fbUser.tempTop       ?? user.tempTop       ?? null,
     };
     if (user.photo) merged.photo = user.photo;
     DB.saveUser(merged);
@@ -2205,8 +2212,10 @@ function openTopUp() {
 function getFreeBoostIntervalHours() {
     const pts = currentUser.ratingPoints || 0;
     const lvl = getRatingLevel(pts);
-    // 12ч если уровень 1+ И пользователь активировал бонус
-    return (lvl.level >= 1 && currentUser.boost12hActivated) ? 12 : 24;
+    // 12ч если уровень 1+ И бонус активирован И не истёк
+    const boost12Active = currentUser.boost12hActivated && 
+                          new Date(currentUser.boost12hActivated) > new Date();
+    return (lvl.level >= 1 && boost12Active) ? 12 : 24;
 }
 
 function canFreeBoost() {
@@ -2665,9 +2674,12 @@ function renderAchievements() {
     if (!container) return;
 
     // Проверяем активные бонусы пользователя
-    const boost12hActive = !!(currentUser.boost12hActivated);
-    const boost12hAvail  = currLevel.level >= 1; // доступно с 1 уровня
-    const tempTopAvail   = currLevel.level >= 2; // доступно с 2 уровня
+    const boost12hExpiresAt = currentUser.boost12hActivated || null;
+    const boost12hActive    = boost12hExpiresAt && new Date(boost12hExpiresAt) > new Date();
+    const boost12hExpired   = boost12hExpiresAt && !boost12hActive;
+    const boost12hLeft      = boost12hActive ? getTimeLeft(boost12hExpiresAt) : null;
+    const boost12hAvail     = currLevel.level >= 1;
+    const tempTopAvail      = currLevel.level >= 2;
 
     // Статус tempTop
     const tt = currentUser.tempTop;
@@ -2721,11 +2733,17 @@ function renderAchievements() {
             if (!isUnlocked) {
                 perkButtons += `<div class="ach-perk locked">⬆️ Поднятие раз в 12ч <span class="ach-lock">🔒</span></div>`;
             } else if (boost12hActive) {
-                const status = boostLeft
-                    ? `<span class="ach-status active">Активно · через ${boostLeft}</span>`
+                // Активен — показываем сколько осталось
+                const nextBoost = getNextFreeBoostTime();
+                const boostStatus = nextBoost
+                    ? `<span class="ach-status active">до ${new Date(currentUser.boost12hActivated).toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit'})}</span>`
                     : `<span class="ach-status ready">Готово к использованию</span>`;
-                perkButtons += `<div class="ach-perk active">⬆️ Поднятие раз в 12ч ${status}</div>`;
+                perkButtons += `<div class="ach-perk active">⬆️ Поднятие раз в 12ч · осталось ${boost12hLeft} ${boostStatus}</div>`;
+            } else if (boost12hExpired) {
+                // Истёк — кнопка продления
+                perkButtons += `<div class="ach-perk available" onclick="activate12hBoost()">⬆️ Поднятие раз в 12ч <span class="ach-activate">Продлить →</span></div>`;
             } else {
+                // Никогда не активировался
                 perkButtons += `<div class="ach-perk available" onclick="activate12hBoost()">⬆️ Поднятие раз в 12ч <span class="ach-activate">Активировать →</span></div>`;
             }
         }
@@ -2761,27 +2779,35 @@ function renderAchievements() {
     }).join('');
 }
 
-// Активировать режим 12ч поднятий
+// Активировать режим 12ч поднятий на 3 суток
 function activate12hBoost() {
     const pts = currentUser.ratingPoints || 0;
     if (getRatingLevel(pts).level < 1) {
         tg.showAlert('Доступно с уровня 1 (150 очков)');
         return;
     }
-    if (currentUser.boost12hActivated) return;
+    // Уже активен и не истёк?
+    if (currentUser.boost12hActivated && new Date(currentUser.boost12hActivated) > new Date()) {
+        const left = getTimeLeft(currentUser.boost12hActivated);
+        tg.showAlert(`Бонус уже активен!\nОсталось: ${left}`);
+        return;
+    }
 
     tg.showPopup({
         title: '⬆️ Поднятие раз в 12 часов',
-        message: 'Активировать бесплатное поднятие каждые 12 часов?\n\nБонус уровня 1 — навсегда.',
+        message: 'Активировать бесплатное поднятие каждые 12 часов?\n\n✓ Срок действия: 3 суток\n✓ После истечения можно активировать снова.',
         buttons: [
-            {id: 'yes', type: 'default', text: 'Активировать'},
+            {id: 'yes', type: 'default', text: 'Активировать на 3 суток'},
             {id: 'no',  type: 'cancel',  text: 'Отмена'}
         ]
     }, (btn) => {
         if (btn !== 'yes') return;
-        currentUser.boost12hActivated = true;
+        // Сохраняем дату истечения (3 суток)
+        const expiresAt = new Date(Date.now() + 3 * 24 * 3600000).toISOString();
+        currentUser.boost12hActivated = expiresAt;
         saveUser();
-        tg.showAlert('✅ Теперь можно поднимать объявления раз в 12 часов!');
+        const expStr = new Date(expiresAt).toLocaleString('ru-RU', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
+        tg.showAlert(`✅ Активировано до ${expStr}!\nТеперь можно поднимать объявления раз в 12 часов.`);
         renderAchievements();
     });
 }
