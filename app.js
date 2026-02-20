@@ -54,9 +54,9 @@ async function manualSync() {
     const el = document.getElementById('syncStatus');
     const state = el?.dataset?.state;
     if (state === 'ok') {
-        tg.showAlert(`✅ Синхронизация успешна\n${el.title}`);
+        tg.showAlert(`✅ Синхронизация OK · v6.9\n${el.title}`);
     } else if (state === 'error' || state === 'warn') {
-        tg.showAlert(`❌ Ошибка синхронизации:\n\n${_syncError || el?.title || 'Неизвестная ошибка'}\n\nВерсия: v6.5`);
+        tg.showAlert(`❌ Ошибка синхронизации:\n\n${_syncError || el?.title || 'Неизвестная ошибка'}\n\nВерсия: v6.9`);
     }
 }
 
@@ -101,20 +101,18 @@ async function syncFromFirebase() {
         // Получаем все объявления из Firebase
         const fbCars = Object.values(data).filter(Boolean);
 
-        // МЕРЖ: Firebase — источник истины, но свои локальные объявления приоритетнее
-        // (они могут содержать только что добавленные данные которые ещё не дошли до FB)
+        // МЕРЖ: Firebase — источник истины (там хранятся фото!)
+        // Локальные данные используем ТОЛЬКО если объявление ещё не попало в Firebase
         const merged = [...fbCars];
         localCars.forEach(localCar => {
             if (myCarIds.has(localCar.id)) {
-                const fbIdx = merged.findIndex(c => c.id == localCar.id);
+                const fbIdx = merged.findIndex(c => String(c.id) === String(localCar.id));
                 if (fbIdx === -1) {
-                    // Моё объявление есть локально но нет в Firebase — добавляем и перезаливаем
+                    // Моё объявление есть локально но нет в Firebase — дозаливаем
                     merged.push(localCar);
-                    pushCarToFirebase(localCar); // дозаливаем
-                } else {
-                    // Заменяем Firebase-версию локальной (она свежее для моих объявлений)
-                    merged[fbIdx] = localCar;
+                    pushCarToFirebase(localCar);
                 }
+                // Если уже есть в Firebase — НЕ заменяем (там есть фото, здесь нет)
             }
         });
 
@@ -2158,7 +2156,7 @@ function checkDailyStreak() {
 // ─── Проверка 50 просмотров у объявлений пользователя ───────────
 function checkListingViewsMilestones() {
     if (!currentUser) return;
-    const myCars = cars.filter(c => c.userId === currentUser.id);
+    const myCars = cars.filter(c => String(c.userId) === String(currentUser.id));
     if (!currentUser.ratingFlags) currentUser.ratingFlags = {};
 
     myCars.forEach(car => {
@@ -2174,7 +2172,7 @@ function checkListingViewsMilestones() {
 // ─── Проверка объявлений активных >2 недель ─────────────────────
 function checkListingAgeBonus() {
     if (!currentUser) return;
-    const myCars = cars.filter(c => c.userId === currentUser.id);
+    const myCars = cars.filter(c => String(c.userId) === String(currentUser.id));
     if (!currentUser.ratingFlags) currentUser.ratingFlags = {};
     const twoWeeksAgo = Date.now() - 14 * 24 * 60 * 60 * 1000;
 
@@ -2615,7 +2613,7 @@ function renderProfile() {
     updateBalanceDisplay();
     
     // Статистика
-    const myListings = cars.filter(c => c.userId === currentUser.id);
+    const myListings = cars.filter(c => String(c.userId) === String(currentUser.id));
     const statListings = document.getElementById('statListings');
     if (statListings) statListings.textContent = myListings.length;
     
@@ -2883,7 +2881,7 @@ function buyTempTop() {
         return;
     }
 
-    const myListings = cars.filter(c => c.userId === currentUser.id);
+    const myListings = cars.filter(c => String(c.userId) === String(currentUser.id));
     if (!myListings.length) {
         tg.showAlert('У вас нет активных объявлений');
         return;
@@ -2936,7 +2934,7 @@ function chooseTempTopListing() {
         tg.showAlert('Доступно с уровня 2 (500 очков)');
         return;
     }
-    const myListings = cars.filter(c => c.userId === currentUser.id);
+    const myListings = cars.filter(c => String(c.userId) === String(currentUser.id));
     if (!myListings.length) {
         tg.showAlert('У вас нет активных объявлений');
         return;
@@ -2982,7 +2980,7 @@ function openProfile() {
     document.getElementById('profileName').textContent = currentUser.name || (currentUser.firstName + ' ' + currentUser.lastName).trim() || 'Пользователь';
     document.getElementById('profileId').textContent = `ID: ${currentUser.telegramId}`;
     
-    const myListings = cars.filter(c => c.userId === currentUser.id);
+    const myListings = cars.filter(c => String(c.userId) === String(currentUser.id));
     document.getElementById('statListings').textContent = myListings.length;
     document.getElementById('statViews').textContent = currentUser.views || 0;
     document.getElementById('statRating').textContent = currentUser.ratingPoints || 0;
@@ -3054,7 +3052,7 @@ function getViews(carId) {
 }
 
 function renderMyListings() {
-    const myListings = cars.filter(c => c.userId === currentUser.id);
+    const myListings = cars.filter(c => String(c.userId) === String(currentUser.id));
     const container = document.getElementById('myListingsContainer');
     
     if (myListings.length === 0) {
@@ -3064,7 +3062,8 @@ function renderMyListings() {
     
     container.innerHTML = myListings.map(car => {
         const emoji = car.category === 'car' ? '🚗' : car.category === 'truck' ? '🚚' : 
-                     car.category === 'special' ? '🚜' : car.category === 'moto' ? '🏍' : '🚤';
+                     car.category === 'special' ? '🚜' : car.category === 'moto' ? '🏍' : 
+                     car.category === 'parts' ? '🔧' : '🚤';
         
         // Показываем фото если есть, иначе эмодзи
         let thumbHtml = '';
@@ -3127,7 +3126,7 @@ function renderMyListings() {
             ${thumbHtml}
             <div class="my-listing-row">
                 <div class="my-listing-info" onclick="showDetail(${car.id})">
-                    <div class="my-listing-title">${car.brand} ${car.model} ${car.year || ''}</div>
+                    <div class="my-listing-title">${car.category === 'parts' ? (car.partTitle || car.partType || car.brand) : car.brand + ' ' + car.model + ' ' + (car.year || '')}</div>
                     <div class="my-listing-price">${fmt(car.price)} ${car.currency}</div>
                     <div class="my-listing-date">${formatDate(car.createdAt)}</div>
                     <div class="my-listing-views">
