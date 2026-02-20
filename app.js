@@ -1844,48 +1844,35 @@ function handleSubmit(e) {
     };
     
     if (editingCarId) {
-        // РЕДАКТИРОВАНИЕ
+        // РЕДАКТИРОВАНИЕ — обновляем в памяти и Firebase
         carData.id = editingCarId;
-        DB.updateCar(editingCarId, carData);
-        cars = DB.getCars();
-        // Сохраняем в Firebase
+        const editIdx = cars.findIndex(c => c.id === editingCarId);
+        if (editIdx !== -1) cars[editIdx] = { ...cars[editIdx], ...carData };
+        DB.saveCars(cars);
         pushCarToFirebase(carData);
         tg.showAlert('Изменения сохранены!');
         editingCarId = null;
     } else {
         // НОВОЕ ОБЪЯВЛЕНИЕ
-        // Генерируем уникальный ID через timestamp + случайное число
-        // (защита от коллизий когда два пользователя добавляют одновременно)
         carData.id = Date.now() * 1000 + Math.floor(Math.random() * 1000);
         carData.isTop = false;
         carData.createdAt = new Date().toISOString();
-        
-        // Получаем свежие данные из DB
-        cars = DB.getCars();
-        
-        // Добавляем новое объявление
+
+        // Добавляем в память С ФОТО — для немедленного отображения
         cars.push(carData);
-        
-        // Сохраняем в localStorage
+        // В localStorage — без фото (экономия места)
         DB.saveCars(cars);
-        
-        // Сохраняем в Firebase (для других пользователей)
+        // В Firebase — с фото (для других пользователей)
         pushCarToFirebase(carData);
-        
-        // Добавляем в список пользователя
-        if (!currentUser.listings) {
-            currentUser.listings = [];
-        }
+
+        if (!currentUser.listings) currentUser.listings = [];
         currentUser.listings.push(carData.id);
         saveUser();
-        
-        // Рейтинг: +10 за публикацию
+
         awardPoints('LISTING_PUBLISHED');
-        // +10 за 6 фото
         if (uploadedPhotos.length >= 6) awardPoints('ALL_PHOTOS');
-        // +10 за видео
         if (uploadedVideo) awardPoints('VIDEO_ADDED');
-        
+
         let msg = 'Объявление опубликовано!\n+10 очков рейтинга';
         if (uploadedPhotos.length >= 6) msg += '\n+10 за все фото';
         if (uploadedVideo) msg += '\n+10 за видео';
@@ -1912,9 +1899,6 @@ function handleSubmit(e) {
     
     // Закрываем форму
     closePage('addPage');
-    
-    // Обновляем глобальную переменную cars
-    cars = DB.getCars();
     
     // Переключаемся на главную
     document.querySelectorAll('.nav-button').forEach(b => b.classList.remove('active'));
@@ -2387,8 +2371,10 @@ function boostListing(carId, paid = false) {
         tg.showAlert(`Объявление поднято бесплатно!\n+5 очков рейтинга\nСледующее через ${hours} ч`);
     }
     
-    DB.updateCar(car.id, car);
-    cars = DB.getCars();
+    // Обновляем в памяти (не перезагружаем из DB — потеряем фото)
+    const boostIdx = cars.findIndex(c => c.id === car.id);
+    if (boostIdx !== -1) cars[boostIdx] = car;
+    DB.saveCars(cars);
     pushCarToFirebase(car);
     renderMyListings();
 }
