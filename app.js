@@ -78,7 +78,7 @@ function manualSync() {
     const el = document.getElementById('syncStatus');
     const state = el?.dataset?.state;
     if (state === 'ok') {
-        tg.showAlert(`✅ Firebase WebSocket · v7.1\n${cars.length} объявлений\nОбновлено: ${_lastSyncTime?.toLocaleTimeString('ru-RU') || '—'}\n\nДанные обновляются автоматически в реальном времени`);
+        tg.showAlert(`✅ Firebase WebSocket · v7.2\n${cars.length} объявлений\nОбновлено: ${_lastSyncTime?.toLocaleTimeString('ru-RU') || '—'}\n\nДанные обновляются автоматически в реальном времени`);
     } else if (state === 'error') {
         tg.showAlert(`❌ Ошибка: ${_syncError || 'нет соединения'}\n\nПопробуйте перезапустить приложение`);
     } else {
@@ -140,13 +140,12 @@ function syncFromFirebase() {
                 if (firstLoad) {
                     firstLoad = false;
                     resolve(); // разблокируем await syncFromFirebase()
+                    setSyncStatus('ok', `${cars.length} объявл. · ${_lastSyncTime.toLocaleTimeString('ru-RU')}`);
                 } else {
                     // Последующие обновления — тихо рендерим
                     render();
                     setSyncStatus('ok', `${cars.length} объявл. · ${_lastSyncTime.toLocaleTimeString('ru-RU')}`);
                 }
-
-                setSyncStatus('ok', `${cars.length} объявл. · ${_lastSyncTime.toLocaleTimeString('ru-RU')}`);
             },
             (error) => {
                 _syncError = error.message;
@@ -974,7 +973,7 @@ function resetFilters() {
 // Получить отфильтрованные машины
 function getFilteredCars() {
     return cars.filter(c => {
-        if (filters.search && !`${c.brand} ${c.model}`.toLowerCase().includes(filters.search)) return false;
+        if (filters.search && !`${c.brand} ${c.model} ${c.partTitle || ''}`.toLowerCase().includes(filters.search)) return false;
         if (filters.category !== 'all' && c.category !== filters.category) return false;
         if (filters.brands.length > 0 && !filters.brands.includes(c.brand)) return false;
         if (filters.models.length > 0 && !filters.models.includes(c.model)) return false;
@@ -1261,7 +1260,7 @@ function showDetail(id) {
     `;
     
     // Добавляем секцию с другими объявлениями продавца
-    const sellerOtherCars = cars.filter(car => car.userId === c.userId && car.id !== c.id);
+    const sellerOtherCars = cars.filter(car => String(car.userId) === String(c.userId) && car.id !== c.id);
     if (sellerOtherCars.length > 0) {
         document.getElementById('detailContent').innerHTML += `
             <div class="detail-section seller-listings-section">
@@ -1460,7 +1459,8 @@ function renderFavorites() {
 
     container.innerHTML = favCars.map(c => {
         const emoji = c.category === 'car' ? '🚗' : c.category === 'truck' ? '🚚' :
-                      c.category === 'special' ? '🚜' : c.category === 'moto' ? '🏍' : '🚤';
+                      c.category === 'special' ? '🚜' : c.category === 'moto' ? '🏍' :
+                      c.category === 'parts' ? '🔧' : '🚤';
         const thumbHtml = c.photos && c.photos.length > 0
             ? `<div class="fav-card-thumb" style="background-image:url('${c.photos[0]}');background-size:cover;background-position:center;"></div>`
             : `<div class="fav-card-thumb fav-card-thumb-emoji">${emoji}</div>`;
@@ -1471,18 +1471,27 @@ function renderFavorites() {
                 ${thumbHtml}
                 <div class="fav-card-body">
                     <div class="fav-card-header">
-                        <div class="fav-card-title">${c.brand} ${c.model} <span class="fav-card-year">${c.year}</span></div>
+                        <div class="fav-card-title">${c.category === 'parts' ? (c.partTitle || c.partType || c.brand) : `${c.brand} ${c.model} <span class="fav-card-year">${c.year}</span>`}</div>
                         ${isTop}
                     </div>
                     <div class="fav-card-price">${fmt(c.price)} ${c.currency}</div>
                     <div class="fav-card-meta">
-                        <span>📏 ${fmt(c.mileage)} км</span>
-                        <span>📍 ${c.city}</span>
+                        ${c.category === 'parts' ? `
+                            <span>🔧 ${c.partType || '—'}</span>
+                            <span>✅ ${c.condition || '—'}</span>
+                        ` : `
+                            <span>📏 ${fmt(c.mileage)} км</span>
+                            <span>📍 ${c.city}</span>
+                        `}
                     </div>
+                    ${c.category !== 'parts' ? `
                     <div class="fav-card-meta">
                         <span>⛽ ${c.fuel}</span>
                         <span>⚙️ ${c.transmission}</span>
-                    </div>
+                    </div>` : `
+                    <div class="fav-card-meta">
+                        <span>📍 ${c.city}</span>
+                    </div>`}
                 </div>
                 <button class="fav-remove-btn" onclick="event.stopPropagation(); removeFromFav(${c.id})" title="Удалить из избранного">❤️</button>
             </div>`;
@@ -1783,6 +1792,7 @@ function handleSubmit(e) {
         if (!/^\d+(\.\d+)?\s*(л)?$/i.test(engineValue)) {
             tg.showAlert('Объем двигателя: укажите только цифры (например: 2.5 или 2.5 л)');
             engineEl.focus();
+            unblockSubmit(); // ← БАГ ИСПРАВЛЕН: кнопка разблокируется при ошибке
             return;
         }
     }
@@ -2060,7 +2070,7 @@ const RATING_LEVELS = [
 
 const RATING_POINTS = {
     LISTING_PUBLISHED:  10,  // опубликовал объявление
-    LISTING_50_VIEWS:   10,  // объявление получило 50 просмотров
+    LISTING_50_VIEWS:   15,  // объявление получило 50 просмотров
     LISTING_2_WEEKS:    15,  // объявление активно >2 недель
     BOOST_FREE:          5,  // бесплатное поднятие
     BOOST_PAID:         15,  // платное поднятие
@@ -2160,6 +2170,7 @@ function checkDailyStreak() {
     if (streak.days > 0 && streak.days % 7 === 0 && !streak.counted) {
         streak.counted = true;
         currentUser.streak = streak;
+        DB.saveUser(currentUser); // сохраняем counted=true ДО debounce awardPoints
         awardPoints('STREAK_7_DAYS');
     } else {
         saveUser();
@@ -2417,6 +2428,13 @@ function canUseTempTop() {
 // Активировать временный Топ для объявления (24ч)
 function activateTempTop(carId, skipConfirm = false) {
     carId = Number(carId);
+    
+    // Проверка уровня — защита от прямого вызова в обход canUseTempTop()
+    // skipConfirm=true означает вызов из buyTempTop (очки уже проверены и списаны)
+    if (!skipConfirm && !canUseTempTop()) {
+        tg.showAlert('Функция «Поставить в Топ» доступна с уровня 2 (500 очков)');
+        return;
+    }
     
     const activeTempTop = currentUser.tempTop;
     if (activeTempTop && activeTempTop.carId && new Date(activeTempTop.expiresAt) > new Date()) {
