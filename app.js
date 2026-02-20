@@ -1818,7 +1818,7 @@ function initTestUsers() {
     DB.saveUsers(users);
 }
 
-function initUser() {
+async function initUser() {
     // Инициализируем тестовых пользователей для объявлений
     initTestUsers();
     
@@ -1840,19 +1840,27 @@ function initUser() {
                 email: '',
                 city: '',
                 balance: 0,
+                transactions: [],
                 listings: [],
                 views: 0,
                 rating: 0.0,
+                subscriptions: { autoBoost: { active: false, carIds: [], cars: {} } },
                 registeredAt: new Date().toISOString()
             };
             DB.saveUsers(users);
         }
         
         currentUser = users[userId];
-        // Синхронизируем с Firebase (баланс, подписки могут быть актуальнее)
-        syncUserFromFirebase(currentUser).then(merged => {
-            currentUser = merged;
-        });
+        // Гарантируем subscriptions для старых пользователей без этого поля
+        if (!currentUser.subscriptions) {
+            currentUser.subscriptions = { autoBoost: { active: false, carIds: [], cars: {} } };
+        }
+        // Ждём Firebase — данные актуальнее (баланс, подписки)
+        try {
+            currentUser = await syncUserFromFirebase(currentUser);
+        } catch(e) {
+            console.warn('Firebase user sync failed, using local:', e.message);
+        }
     } else {
         const testId = 'test_user';
         let users = DB.getUsers();
@@ -1869,19 +1877,27 @@ function initUser() {
                 email: '',
                 city: '',
                 balance: 0,
+                transactions: [],
                 listings: [],
                 views: 0,
                 rating: 0.0,
+                subscriptions: { autoBoost: { active: false, carIds: [], cars: {} } },
                 registeredAt: new Date().toISOString()
             };
             DB.saveUsers(users);
         }
         
         currentUser = users[testId];
-        // Синхронизируем с Firebase
-        syncUserFromFirebase(currentUser).then(merged => {
-            currentUser = merged;
-        });
+        // Гарантируем subscriptions для старых пользователей без этого поля
+        if (!currentUser.subscriptions) {
+            currentUser.subscriptions = { autoBoost: { active: false, carIds: [], cars: {} } };
+        }
+        // Ждём Firebase
+        try {
+            currentUser = await syncUserFromFirebase(currentUser);
+        } catch(e) {
+            console.warn('Firebase user sync failed, using local:', e.message);
+        }
     }
 }
 
@@ -2204,6 +2220,37 @@ function disableAutoBoost(carId) {
     renderMyListings();
     renderProfile();
     tg.showAlert('Автоподнятие отключено');
+}
+
+// renderProfile — обновляет данные профиля БЕЗ перехода на страницу
+// (вызывается после изменений баланса/подписок когда профиль уже открыт)
+function renderProfile() {
+    if (!currentUser) return;
+    
+    // Обновляем баланс
+    updateBalanceDisplay();
+    
+    // Статистика
+    const myListings = cars.filter(c => c.userId === currentUser.id);
+    const statListings = document.getElementById('statListings');
+    if (statListings) statListings.textContent = myListings.length;
+    
+    // Статус автоподнятия в Premium секции
+    const autoBoostStatus = document.getElementById('autoBoostStatus');
+    if (autoBoostStatus) {
+        const carIds = normalizeFirebaseArray(currentUser.subscriptions?.autoBoost?.carIds).map(Number);
+        const isActive = currentUser.subscriptions?.autoBoost?.active && carIds.length > 0;
+        if (isActive) {
+            autoBoostStatus.textContent = `Активна (${carIds.length} объявл.)`;
+            autoBoostStatus.classList.add('active');
+        } else {
+            autoBoostStatus.textContent = 'Неактивна';
+            autoBoostStatus.classList.remove('active');
+        }
+    }
+    
+    // Обновляем мои объявления
+    renderMyListings();
 }
 
 function renderProfileAvatar() {
@@ -2644,8 +2691,10 @@ document.getElementById('searchInput').addEventListener('input', function(e) {
     render();
 });
 
-initUser();
-render();
-updateFavBadge();
-// Синхронизируем с общей базой данных (Firebase)
-syncFromFirebase();
+// Инициализация приложения — ждём загрузку пользователя перед рендером
+(async () => {
+    await initUser();   // загружаем пользователя (включая Firebase sync)
+    render();           // рендерим объявления
+    updateFavBadge();
+    syncFromFirebase(); // фоновая синхронизация машин
+})();
