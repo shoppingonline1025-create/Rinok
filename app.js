@@ -1769,7 +1769,17 @@ function handleSubmit(e) {
         currentUser.listings.push(carData.id);
         saveUser();
         
-        tg.showAlert('Объявление опубликовано!');
+        // Рейтинг: +10 за публикацию
+        awardPoints('LISTING_PUBLISHED');
+        // +10 за 6 фото
+        if (uploadedPhotos.length >= 6) awardPoints('ALL_PHOTOS');
+        // +10 за видео
+        if (uploadedVideo) awardPoints('VIDEO_ADDED');
+        
+        let msg = 'Объявление опубликовано!\n+10 очков рейтинга';
+        if (uploadedPhotos.length >= 6) msg += '\n+10 за все фото';
+        if (uploadedVideo) msg += '\n+10 за видео';
+        tg.showAlert(msg);
     }
     
     // Очистка формы
@@ -1933,6 +1943,156 @@ async function initUser() {
     }
 }
 
+// ╔══════════════════════════════════════════╗
+// ║  СИСТЕМА РЕЙТИНГА                        ║
+// ╚══════════════════════════════════════════╝
+
+const RATING_LEVELS = [
+    { level: 1, name: 'Новичок',   min: 0,    badge: '⚪', color: '#888' },
+    { level: 2, name: 'Участник',  min: 150,  badge: '🟢', color: '#4caf50' },
+    { level: 3, name: 'Надёжный',  min: 500,  badge: '🔵', color: '#2196f3' },
+    { level: 4, name: 'Опытный',   min: 1200, badge: '🟣', color: '#9c27b0' },
+    { level: 5, name: 'Эксперт',   min: 3000, badge: '🌟', color: '#ffc107' }
+];
+
+const RATING_POINTS = {
+    LISTING_PUBLISHED:  10,  // опубликовал объявление
+    LISTING_50_VIEWS:   10,  // объявление получило 50 просмотров
+    LISTING_2_WEEKS:    15,  // объявление активно >2 недель
+    BOOST_FREE:          5,  // бесплатное поднятие
+    BOOST_PAID:         15,  // платное поднятие
+    PROFILE_COMPLETE:   30,  // заполнил имя+телефон+город+фото
+    ALL_PHOTOS:         10,  // добавил 6 фото при публикации
+    VIDEO_ADDED:        10,  // добавил видео при публикации
+    STREAK_7_DAYS:      25,  // открыл приложение 7 дней подряд
+    BALANCE_TOPUP:      10,  // пополнил баланс
+};
+
+// Получить уровень по очкам
+function getRatingLevel(points) {
+    const lvls = [...RATING_LEVELS].reverse();
+    return lvls.find(l => points >= l.min) || RATING_LEVELS[0];
+}
+
+// Следующий уровень
+function getNextLevel(points) {
+    return RATING_LEVELS.find(l => l.min > points) || null;
+}
+
+// Начислить очки рейтинга
+function awardPoints(reason, customPoints = null) {
+    if (!currentUser) return;
+    if (!currentUser.ratingPoints) currentUser.ratingPoints = 0;
+    if (!currentUser.ratingLog) currentUser.ratingLog = [];
+
+    const pts = customPoints !== null ? customPoints : (RATING_POINTS[reason] || 0);
+    if (pts <= 0) return;
+
+    currentUser.ratingPoints += pts;
+
+    // Лог последних 20 начислений
+    currentUser.ratingLog.unshift({
+        reason,
+        pts,
+        total: currentUser.ratingPoints,
+        date: new Date().toISOString()
+    });
+    if (currentUser.ratingLog.length > 20) currentUser.ratingLog.length = 20;
+
+    saveUser();
+
+    // Уведомить если сменился уровень
+    const prev = getRatingLevel(currentUser.ratingPoints - pts);
+    const curr = getRatingLevel(currentUser.ratingPoints);
+    if (curr.level > prev.level) {
+        setTimeout(() => {
+            tg.showAlert(`🎉 Новый уровень!\n${curr.badge} ${curr.name}\nОчков рейтинга: ${currentUser.ratingPoints}`);
+        }, 500);
+    }
+}
+
+// ─── Проверка и начисление за заполненный профиль ──────────────
+function checkProfileComplete() {
+    if (!currentUser) return;
+    if (currentUser.ratingFlags?.profileComplete) return; // уже начислено
+
+    const hasName  = !!(currentUser.name?.trim());
+    const hasPhone = !!(currentUser.phone?.trim());
+    const hasCity  = !!(currentUser.city?.trim());
+    const hasPhoto = !!(currentUser.photo);
+
+    if (hasName && hasPhone && hasCity && hasPhoto) {
+        if (!currentUser.ratingFlags) currentUser.ratingFlags = {};
+        currentUser.ratingFlags.profileComplete = true;
+        awardPoints('PROFILE_COMPLETE');
+        tg.showAlert('✅ Профиль заполнен!\n+30 очков рейтинга');
+    }
+}
+
+// ─── Streak: ежедневный вход ────────────────────────────────────
+function checkDailyStreak() {
+    if (!currentUser) return;
+    const today = getTodayStr();
+    const streak = currentUser.streak || { days: 0, lastDate: '', counted: false };
+
+    if (streak.lastDate === today) return; // уже отмечен сегодня
+
+    const yesterday = (() => {
+        const d = new Date(); d.setDate(d.getDate() - 1);
+        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    })();
+
+    if (streak.lastDate === yesterday) {
+        streak.days++;
+    } else {
+        streak.days = 1; // сброс серии
+    }
+    streak.lastDate = today;
+    streak.counted = false;
+    currentUser.streak = streak;
+
+    // Начислить за 7-дневную серию
+    if (streak.days > 0 && streak.days % 7 === 0 && !streak.counted) {
+        streak.counted = true;
+        currentUser.streak = streak;
+        awardPoints('STREAK_7_DAYS');
+    } else {
+        saveUser();
+    }
+}
+
+// ─── Проверка 50 просмотров у объявлений пользователя ───────────
+function checkListingViewsMilestones() {
+    if (!currentUser) return;
+    const myCars = cars.filter(c => c.userId === currentUser.id);
+    if (!currentUser.ratingFlags) currentUser.ratingFlags = {};
+
+    myCars.forEach(car => {
+        const views = getViews(car.id);
+        const flagKey = `views50_${car.id}`;
+        if (views.total >= 50 && !currentUser.ratingFlags[flagKey]) {
+            currentUser.ratingFlags[flagKey] = true;
+            awardPoints('LISTING_50_VIEWS');
+        }
+    });
+}
+
+// ─── Проверка объявлений активных >2 недель ─────────────────────
+function checkListingAgeBonus() {
+    if (!currentUser) return;
+    const myCars = cars.filter(c => c.userId === currentUser.id);
+    if (!currentUser.ratingFlags) currentUser.ratingFlags = {};
+    const twoWeeksAgo = Date.now() - 14 * 24 * 60 * 60 * 1000;
+
+    myCars.forEach(car => {
+        const flagKey = `age2w_${car.id}`;
+        if (!currentUser.ratingFlags[flagKey] && new Date(car.createdAt).getTime() <= twoWeeksAgo) {
+            currentUser.ratingFlags[flagKey] = true;
+            awardPoints('LISTING_2_WEEKS');
+        }
+    });
+}
+
 function saveUser() {
     if (!currentUser) return;
     DB.saveUser(currentUser);
@@ -1950,14 +2110,15 @@ async function handleProfilePhoto(e) {
 
     const reader = new FileReader();
     reader.onload = async function(ev) {
-        // Сжимаем до 300x300 (аватарка маленькая)
         const compressed = await compressImage(ev.target.result, 300, 0.80);
         currentUser.photo = compressed;
         saveUser();
         renderProfileAvatar();
+        // Проверяем заполненность профиля после добавления фото
+        checkProfileComplete();
     };
     reader.readAsDataURL(file);
-    e.target.value = ''; // сбрасываем input
+    e.target.value = '';
 }
 
 
@@ -1995,6 +2156,7 @@ function addBalance(amount, method = 'manual') {
     currentUser.balance = (currentUser.balance || 0) + amount;
     addTransaction('deposit', amount, {method});
     updateBalanceDisplay();
+    awardPoints('BALANCE_TOPUP');
 }
 
 function updateBalanceDisplay() {
@@ -2038,22 +2200,27 @@ function openTopUp() {
 
 
 // ─── Поднятие объявлений ──────────────────────────────────────
+
+// Интервал бесплатного поднятия в зависимости от уровня и активации
+function getFreeBoostIntervalHours() {
+    const pts = currentUser.ratingPoints || 0;
+    const lvl = getRatingLevel(pts);
+    // 12ч если уровень 1+ И пользователь активировал бонус
+    return (lvl.level >= 1 && currentUser.boost12hActivated) ? 12 : 24;
+}
+
 function canFreeBoost() {
-    if (!currentUser.freeBoostAvailableAt) return true; // первое поднятие
-    const now = new Date();
-    const available = new Date(currentUser.freeBoostAvailableAt);
-    return now >= available;
+    if (!currentUser.freeBoostAvailableAt) return true;
+    return new Date() >= new Date(currentUser.freeBoostAvailableAt);
 }
 
 function getNextFreeBoostTime() {
     if (!currentUser.freeBoostAvailableAt) return null;
-    const now = new Date();
     const available = new Date(currentUser.freeBoostAvailableAt);
-    if (now >= available) return null;
-    
-    const diff = available - now;
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    if (new Date() >= available) return null;
+    const diff = available - new Date();
+    const hours = Math.floor(diff / 3600000);
+    const minutes = Math.floor((diff % 3600000) / 60000);
     return `${hours}ч ${minutes}м`;
 }
 
@@ -2094,18 +2261,18 @@ function boostListing(carId, paid = false) {
         }
         
         performBoost(car);
-        tg.showAlert('Объявление поднято! (-15 лей)');
+        awardPoints('BOOST_PAID');
+        tg.showAlert('Объявление поднято! (-15 лей)\n+15 очков рейтинга');
     } else {
         // Бесплатное поднятие
         performBoost(car);
-        // Следующее бесплатное поднятие завтра в 00:00 (глобально на аккаунт)
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        tomorrow.setHours(0, 0, 0, 0);
-        currentUser.freeBoostAvailableAt = tomorrow.toISOString();
+        // Интервал зависит от уровня: 12ч (уровень 2+) или 24ч
+        const hours = getFreeBoostIntervalHours();
+        const next = new Date(Date.now() + hours * 3600000);
+        currentUser.freeBoostAvailableAt = next.toISOString();
         saveUser();
-        
-        tg.showAlert('Объявление поднято бесплатно!\nСледующее бесплатное поднятие: завтра');
+        awardPoints('BOOST_FREE');
+        tg.showAlert(`Объявление поднято бесплатно!\n+5 очков рейтинга\nСледующее через ${hours} ч`);
     }
     
     DB.updateCar(car.id, car);
@@ -2119,6 +2286,94 @@ function performBoost(car) {
     car.lastBoosted = new Date().toISOString();
 }
 
+// ─── Временный Топ (уровень 3+) ───────────────────────────────
+
+// Проверить, доступен ли временный Топ пользователю
+function canUseTempTop() {
+    const pts = currentUser.ratingPoints || 0;
+    return getRatingLevel(pts).level >= 2;
+}
+
+// Активировать временный Топ для объявления (24ч)
+function activateTempTop(carId) {
+    carId = Number(carId);
+    
+    // Проверяем, нет ли уже активного tempTop у этого пользователя
+    const activeTempTop = currentUser.tempTop;
+    if (activeTempTop && activeTempTop.carId && new Date(activeTempTop.expiresAt) > new Date()) {
+        const remaining = getTimeLeft(activeTempTop.expiresAt);
+        tg.showAlert(`У вас уже активен Топ для другого объявления.\nОсталось: ${remaining}`);
+        return;
+    }
+    
+    const car = cars.find(c => c.id === carId);
+    if (!car) return;
+    
+    const carTitle = `${car.partTitle || car.brand + ' ' + car.model}`.trim();
+    
+    tg.showPopup({
+        title: '🔥 Добавить в Топ',
+        message: `${carTitle}\n\n✓ Объявление появится в разделе «Топ»\n✓ Срок: 24 часа\n✓ Оригинал останется в общем списке\n\nАктивировать бесплатно?`,
+        buttons: [
+            {id: 'yes', type: 'default', text: 'Активировать'},
+            {id: 'no', type: 'cancel', text: 'Отмена'}
+        ]
+    }, (btn) => {
+        if (btn !== 'yes') return;
+        
+        const expiresAt = new Date(Date.now() + 24 * 3600000).toISOString();
+        
+        // Сохраняем tempTop в профиле
+        currentUser.tempTop = { carId, expiresAt };
+        
+        // Помечаем объявление как isTop временно
+        const carIdx = cars.findIndex(c => c.id === carId);
+        if (carIdx !== -1) {
+            cars[carIdx].isTop = true;
+            cars[carIdx].tempTopExpiresAt = expiresAt;
+            DB.saveCars(cars);
+            pushCarToFirebase(cars[carIdx]);
+        }
+        
+        saveUser();
+        render();
+        renderMyListings();
+        tg.showAlert(`✅ Объявление добавлено в Топ!\nДействует до: ${new Date(expiresAt).toLocaleString('ru-RU', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}`);
+    });
+}
+
+// Удалить истёкшие временные Топы
+function cleanExpiredTempTops() {
+    const now = new Date();
+    let changed = false;
+    cars = cars.map(car => {
+        if (car.tempTopExpiresAt && new Date(car.tempTopExpiresAt) <= now) {
+            delete car.tempTopExpiresAt;
+            car.isTop = false;
+            pushCarToFirebase(car);
+            changed = true;
+        }
+        return car;
+    });
+    if (changed) {
+        DB.saveCars(cars);
+        render();
+    }
+    // Чистим в профиле пользователей
+    if (currentUser?.tempTop?.expiresAt && new Date(currentUser.tempTop.expiresAt) <= now) {
+        currentUser.tempTop = null;
+        saveUser();
+    }
+}
+
+// Вспомогательная: время до истечения
+function getTimeLeft(isoDate) {
+    const diff = new Date(isoDate) - new Date();
+    if (diff <= 0) return '0ч';
+    const h = Math.floor(diff / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    return h > 0 ? `${h}ч ${m}м` : `${m}м`;
+}
 
 function activateAutoBoost(carId) {
     // Приводим к числу для надёжного сравнения
@@ -2267,6 +2522,9 @@ function renderProfile() {
     const statListings = document.getElementById('statListings');
     if (statListings) statListings.textContent = myListings.length;
     
+    const statRating = document.getElementById('statRating');
+    if (statRating) statRating.textContent = currentUser.ratingPoints || 0;
+    
     // Статус автоподнятия в Premium секции
     const autoBoostStatus = document.getElementById('autoBoostStatus');
     if (autoBoostStatus) {
@@ -2281,8 +2539,82 @@ function renderProfile() {
         }
     }
     
-    // Обновляем мои объявления
+    renderRatingLevel();
     renderMyListings();
+}
+
+// Рендер уровня, прогресс-бара и значка в профиле
+function renderRatingLevel() {
+    const pts = currentUser.ratingPoints || 0;
+    const curr = getRatingLevel(pts);
+    const next = getNextLevel(pts);
+    
+    const badge = document.getElementById('ratingLevelBadge');
+    const name  = document.getElementById('ratingLevelName');
+    const ptsEl = document.getElementById('ratingLevelPts');
+    const fill  = document.getElementById('ratingProgressFill');
+    const label = document.getElementById('ratingProgressLabel');
+    const card  = document.getElementById('ratingLevelCard');
+    
+    if (!badge) return;
+    
+    badge.textContent = curr.badge;
+    name.textContent  = curr.name;
+    ptsEl.textContent = `${pts} очков`;
+    if (card) card.style.setProperty('--level-color', curr.color);
+    
+    if (next) {
+        const range  = next.min - curr.min;
+        const done   = pts - curr.min;
+        const pct    = Math.min(100, Math.round((done / range) * 100));
+        fill.style.width  = pct + '%';
+        label.textContent = `До уровня «${next.name}»: ещё ${next.min - pts} очков`;
+    } else {
+        fill.style.width  = '100%';
+        label.textContent = '🏆 Максимальный уровень достигнут!';
+    }
+    
+    // Обновляем счётчик в шапке карточек
+    const avgEl = document.getElementById('profileAvgRating');
+    if (avgEl) avgEl.textContent = pts;
+}
+
+// История начислений
+const RATING_LABELS = {
+    LISTING_PUBLISHED: '📝 Опубликовал объявление',
+    LISTING_50_VIEWS:  '👁 50 просмотров объявления',
+    LISTING_2_WEEKS:   '📅 Объявление активно 2 недели',
+    BOOST_FREE:        '⬆️ Бесплатное поднятие',
+    BOOST_PAID:        '⬆️ Платное поднятие',
+    PROFILE_COMPLETE:  '✅ Профиль заполнен полностью',
+    ALL_PHOTOS:        '📷 Добавил 6 фото',
+    VIDEO_ADDED:       '🎥 Добавил видео',
+    STREAK_7_DAYS:     '🔥 7 дней подряд в приложении',
+    BALANCE_TOPUP:     '💳 Пополнение баланса',
+};
+
+function toggleRatingLog() {
+    const section = document.getElementById('ratingLogSection');
+    const isOpen  = section.style.display !== 'none';
+    
+    if (!isOpen) {
+        const log  = currentUser.ratingLog || [];
+        const list = document.getElementById('ratingLogList');
+        if (log.length === 0) {
+            list.innerHTML = '<div class="rating-log-empty">Пока нет начислений</div>';
+        } else {
+            list.innerHTML = log.map(entry => {
+                const d = new Date(entry.date);
+                const dateStr = `${d.getDate().toString().padStart(2,'0')}.${(d.getMonth()+1).toString().padStart(2,'0')}`;
+                return `<div class="rating-log-item">
+                    <span class="rating-log-label">${RATING_LABELS[entry.reason] || entry.reason}</span>
+                    <span class="rating-log-pts">+${entry.pts} · ${dateStr}</span>
+                </div>`;
+            }).join('');
+        }
+    }
+    
+    section.style.display = isOpen ? 'none' : 'block';
 }
 
 function renderProfileAvatar() {
@@ -2312,11 +2644,194 @@ function renderProfileAvatar() {
     }
 }
 
+// ─── Вкладки профиля ──────────────────────────────────────────
+function switchProfileTab(tab) {
+    ['main', 'achievements', 'listings'].forEach(t => {
+        const btn = document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1));
+        const content = document.getElementById('tabContent' + t.charAt(0).toUpperCase() + t.slice(1));
+        const isActive = t === tab;
+        if (btn) btn.classList.toggle('active', isActive);
+        if (content) content.style.display = isActive ? 'block' : 'none';
+    });
+    if (tab === 'achievements') renderAchievements();
+    if (tab === 'listings') renderMyListings();
+}
+
+// ─── Раздел достижений ────────────────────────────────────────
+function renderAchievements() {
+    const pts = currentUser.ratingPoints || 0;
+    const currLevel = getRatingLevel(pts);
+    const container = document.getElementById('achievementsContainer');
+    if (!container) return;
+
+    // Проверяем активные бонусы пользователя
+    const boost12hActive = !!(currentUser.boost12hActivated);
+    const boost12hAvail  = currLevel.level >= 1; // доступно с 1 уровня
+    const tempTopAvail   = currLevel.level >= 2; // доступно с 2 уровня
+
+    // Статус tempTop
+    const tt = currentUser.tempTop;
+    const tempTopActive = tt?.carId && new Date(tt.expiresAt) > new Date();
+    const tempTopLeft   = tempTopActive ? getTimeLeft(tt.expiresAt) : null;
+
+    // Статус 12ч буста
+    const boostLeft = getNextFreeBoostTime();
+
+    const LEVELS = [
+        {
+            level: 0, badge: '⚪', name: 'Новичок', range: '0 – 149 очков',
+            color: '#888',
+            perks: [],
+            desc: 'Начальный уровень. Публикуйте объявления, заполняйте профиль и зарабатывайте очки!'
+        },
+        {
+            level: 1, badge: '🟢', name: 'Участник', range: '150 – 499 очков',
+            color: '#4caf50',
+            perks: ['boost12h'],
+            desc: 'Доступно бесплатное поднятие раз в 12 часов (вместо 24ч).'
+        },
+        {
+            level: 2, badge: '🔵', name: 'Надёжный', range: '500 – 1199 очков',
+            color: '#2196f3',
+            perks: ['boost12h', 'tempTop'],
+            desc: 'Поднятие раз в 12ч + одно объявление в Топ на 24 часа.'
+        },
+        {
+            level: 3, badge: '🟣', name: 'Опытный', range: '1200 – 2999 очков',
+            color: '#9c27b0',
+            perks: ['boost12h', 'tempTop'],
+            desc: 'Все бонусы уровня 2. Новые привилегии скоро!'
+        },
+        {
+            level: 4, badge: '🌟', name: 'Эксперт', range: '3000+ очков',
+            color: '#ffc107',
+            perks: ['boost12h', 'tempTop'],
+            desc: 'Максимальный уровень. Все привилегии платформы.'
+        }
+    ];
+
+    container.innerHTML = LEVELS.map(lvl => {
+        const isUnlocked = currLevel.level >= lvl.level;
+        const isCurrent  = currLevel.level === lvl.level;
+
+        // Кнопки активации бонусов
+        let perkButtons = '';
+
+        if (lvl.perks.includes('boost12h')) {
+            if (!isUnlocked) {
+                perkButtons += `<div class="ach-perk locked">⬆️ Поднятие раз в 12ч <span class="ach-lock">🔒</span></div>`;
+            } else if (boost12hActive) {
+                const status = boostLeft
+                    ? `<span class="ach-status active">Активно · через ${boostLeft}</span>`
+                    : `<span class="ach-status ready">Готово к использованию</span>`;
+                perkButtons += `<div class="ach-perk active">⬆️ Поднятие раз в 12ч ${status}</div>`;
+            } else {
+                perkButtons += `<div class="ach-perk available" onclick="activate12hBoost()">⬆️ Поднятие раз в 12ч <span class="ach-activate">Активировать →</span></div>`;
+            }
+        }
+
+        if (lvl.perks.includes('tempTop')) {
+            if (!isUnlocked) {
+                perkButtons += `<div class="ach-perk locked">🔥 Объявление в Топ на 24ч <span class="ach-lock">🔒</span></div>`;
+            } else if (tempTopActive) {
+                perkButtons += `<div class="ach-perk active">🔥 Топ активен · осталось ${tempTopLeft}</div>`;
+            } else {
+                perkButtons += `<div class="ach-perk available" onclick="chooseTempTopListing()">🔥 Объявление в Топ на 24ч <span class="ach-activate">Активировать →</span></div>`;
+            }
+        }
+
+        if (!lvl.perks.length) {
+            perkButtons = `<div class="ach-perk locked" style="opacity:0.5">Бонусов нет · копите очки!</div>`;
+        }
+
+        return `
+        <div class="ach-card ${isUnlocked ? 'unlocked' : 'locked-card'} ${isCurrent ? 'current' : ''}" style="--lc:${lvl.color}">
+            <div class="ach-header">
+                <span class="ach-badge">${lvl.badge}</span>
+                <div class="ach-title-block">
+                    <div class="ach-name">${lvl.name}</div>
+                    <div class="ach-range">${lvl.range}</div>
+                </div>
+                ${isCurrent ? '<span class="ach-you-tag">Вы здесь</span>' : ''}
+                ${isUnlocked && !isCurrent ? '<span class="ach-done">✓</span>' : ''}
+            </div>
+            <div class="ach-desc">${lvl.desc}</div>
+            ${perkButtons ? `<div class="ach-perks">${perkButtons}</div>` : ''}
+        </div>`;
+    }).join('');
+}
+
+// Активировать режим 12ч поднятий
+function activate12hBoost() {
+    const pts = currentUser.ratingPoints || 0;
+    if (getRatingLevel(pts).level < 1) {
+        tg.showAlert('Доступно с уровня 1 (150 очков)');
+        return;
+    }
+    if (currentUser.boost12hActivated) return;
+
+    tg.showPopup({
+        title: '⬆️ Поднятие раз в 12 часов',
+        message: 'Активировать бесплатное поднятие каждые 12 часов?\n\nБонус уровня 1 — навсегда.',
+        buttons: [
+            {id: 'yes', type: 'default', text: 'Активировать'},
+            {id: 'no',  type: 'cancel',  text: 'Отмена'}
+        ]
+    }, (btn) => {
+        if (btn !== 'yes') return;
+        currentUser.boost12hActivated = true;
+        saveUser();
+        tg.showAlert('✅ Теперь можно поднимать объявления раз в 12 часов!');
+        renderAchievements();
+    });
+}
+
+// Выбрать объявление для tempTop
+function chooseTempTopListing() {
+    const pts = currentUser.ratingPoints || 0;
+    if (getRatingLevel(pts).level < 2) {
+        tg.showAlert('Доступно с уровня 2 (500 очков)');
+        return;
+    }
+    const myListings = cars.filter(c => c.userId === currentUser.id);
+    if (!myListings.length) {
+        tg.showAlert('У вас нет активных объявлений');
+        return;
+    }
+
+    // Если одно объявление — активируем сразу
+    if (myListings.length === 1) {
+        activateTempTop(myListings[0].id);
+        return;
+    }
+
+    // Несколько — показываем список через popup
+    const buttons = myListings.slice(0, 5).map(c => ({
+        id: String(c.id),
+        type: 'default',
+        text: `${c.partTitle || c.brand + ' ' + (c.model||'')} · ${fmt(c.price)} ${c.currency}`.substring(0, 40)
+    }));
+    buttons.push({id: 'cancel', type: 'cancel', text: 'Отмена'});
+
+    tg.showPopup({
+        title: '🔥 Выберите объявление',
+        message: 'Какое объявление добавить в Топ на 24 часа?',
+        buttons
+    }, (btn) => {
+        if (btn === 'cancel' || !btn) return;
+        activateTempTop(Number(btn));
+        renderAchievements();
+    });
+}
+
 function openProfile() {
     if (!currentUser) {
         tg.showAlert('Ошибка загрузки профиля');
         return;
     }
+    
+    // Всегда открываем на первой вкладке
+    switchProfileTab('main');
     
     // Аватарка с поддержкой фото
     renderProfileAvatar();
@@ -2327,10 +2842,13 @@ function openProfile() {
     const myListings = cars.filter(c => c.userId === currentUser.id);
     document.getElementById('statListings').textContent = myListings.length;
     document.getElementById('statViews').textContent = currentUser.views || 0;
-    document.getElementById('statRating').textContent = Number(currentUser.rating || 0).toFixed(1);
+    document.getElementById('statRating').textContent = currentUser.ratingPoints || 0;
     
     // Обновляем баланс
     updateBalanceDisplay();
+    
+    // Рейтинг — уровень и прогресс
+    renderRatingLevel();
     
     // Обновляем статус подписки автоподнятия
     const autoBoostStatus = document.getElementById('autoBoostStatus');
@@ -2354,7 +2872,7 @@ function openProfile() {
     const regDate = new Date(currentUser.registeredAt);
     document.getElementById('profileRegDate').textContent = formatDate(regDate);
     document.getElementById('profileTotalViews').textContent = currentUser.views || 0;
-    document.getElementById('profileAvgRating').textContent = Number(currentUser.rating || 0).toFixed(1);
+    document.getElementById('profileAvgRating').textContent = currentUser.ratingPoints || 0;
     
     renderMyListings();
     
@@ -2448,6 +2966,20 @@ function renderMyListings() {
             boostButton = `<button class="my-listing-boost paid" onclick="event.stopPropagation(); boostListing(${car.id}, true)">⬆️ Поднять — 15 лей</button>`;
         }
         
+        // Кнопка временного Топа (уровень 3+)
+        let tempTopButton = '';
+        if (canUseTempTop()) {
+            const activeTempTop = currentUser.tempTop;
+            const isThisCarTop = activeTempTop?.carId === Number(car.id) && 
+                                 activeTempTop?.expiresAt && new Date(activeTempTop.expiresAt) > new Date();
+            if (isThisCarTop) {
+                const left = getTimeLeft(activeTempTop.expiresAt);
+                tempTopButton = `<button class="my-listing-tempTop active" onclick="event.stopPropagation()">🔥 В Топе ещё ${left}</button>`;
+            } else if (!activeTempTop || new Date(activeTempTop?.expiresAt) <= new Date()) {
+                tempTopButton = `<button class="my-listing-tempTop" onclick="event.stopPropagation(); activateTempTop(${car.id})">🔥 Поставить в Топ · 24ч</button>`;
+            }
+        }
+        
         return `<div class="my-listing-item">
             ${thumbHtml}
             <div class="my-listing-row">
@@ -2467,6 +2999,7 @@ function renderMyListings() {
             </div>
             <div class="my-listing-boost-section">
                 ${boostButton}
+                ${tempTopButton}
                 ${autoBoostButton}
             </div>
         </div>`;
@@ -2499,6 +3032,9 @@ function saveField() {
     
     closeEditModal();
     tg.showAlert('Сохранено');
+    
+    // Проверяем заполненность профиля
+    checkProfileComplete();
 }
 
 function closeEditModal() {
@@ -2744,8 +3280,16 @@ document.getElementById('searchInput').addEventListener('input', function(e) {
 
 // Инициализация приложения — ждём загрузку пользователя перед рендером
 (async () => {
-    await initUser();   // загружаем пользователя (включая Firebase sync)
-    render();           // рендерим объявления
+    await initUser();
+    render();
     updateFavBadge();
-    syncFromFirebase(); // фоновая синхронизация машин
+    syncFromFirebase();
+    // Рейтинг и streak
+    checkDailyStreak();
+    // Чистим истёкшие Топы
+    cleanExpiredTempTops();
+    setTimeout(() => {
+        checkListingViewsMilestones();
+        checkListingAgeBonus();
+    }, 2000);
 })();
