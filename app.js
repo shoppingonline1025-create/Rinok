@@ -31,54 +31,99 @@ function enrichCarsWithSellerInfo(carsArr) {
     });
 }
 
-// --- Firebase: загрузить всё из сети и обновить UI ---
+// ╔══════════════════════════════════════════╗
+// ║  FIREBASE SYNC — полная перезапись       ║
+// ╚══════════════════════════════════════════╝
+
+let _lastSyncTime = null;
+let _syncError    = null;
+
+function setSyncStatus(state, text) {
+    const el = document.getElementById('syncStatus');
+    if (!el) return;
+    const icons = { ok: '🟢', error: '🔴', loading: '🔄', warn: '🟡' };
+    el.textContent = icons[state] || '⏳';
+    el.title = text || '';
+    el.dataset.state = state;
+}
+
+async function manualSync() {
+    setSyncStatus('loading', 'Синхронизация...');
+    await syncFromFirebase();
+}
+
+// --- Firebase: прочитать все объявления ---
 async function syncFromFirebase() {
     if (!FIREBASE_URL) return;
+    setSyncStatus('loading', 'Подключение к Firebase...');
     try {
         const res = await fetch(`${FIREBASE_URL}/cars.json`);
-        if (!res.ok) throw new Error('Ошибка Firebase ' + res.status);
+
+        if (!res.ok) {
+            const errText = await res.text();
+            _syncError = `HTTP ${res.status}: ${errText}`;
+            setSyncStatus('error', `Ошибка чтения: HTTP ${res.status}\n${errText}\n\nНажмите для повтора`);
+            console.error('Firebase read error:', res.status, errText);
+            return;
+        }
+
         const data = await res.json();
+        _lastSyncTime = new Date();
+        _syncError = null;
 
         if (!data) {
-            // Firebase полностью пуст — заливаем локальные данные
+            // Firebase пуст — загружаем локальные данные
             const localCars = DB.getCars();
             if (localCars.length > 0) {
-                const enriched = enrichCarsWithSellerInfo(localCars);
-                await pushAllCarsToFirebase(enriched);
-                DB.saveCars(enriched);
-                cars = enriched;
-                render();
+                const ok = await pushAllCarsToFirebase(localCars);
+                if (ok) {
+                    setSyncStatus('ok', `Firebase пуст — загружено ${localCars.length} объявлений\nОбновлено: ${_lastSyncTime.toLocaleTimeString('ru-RU')}`);
+                }
+            } else {
+                setSyncStatus('warn', 'Firebase и локальное хранилище пусты');
             }
-        } else {
-            // Получаем объявления из Firebase
-            let fbCars = Object.values(data).filter(Boolean);
-
-            // ВАЖНО: НЕ делаем bulk PUT — это затрёт чужие объявления!
-            // Просто обновляем локальный кеш данными из Firebase
-            DB.saveCars(fbCars);
-            localStorage.setItem('automarket_initialized', 'true');
-            cars = fbCars;
-            render();
+            return;
         }
+
+        // Получаем все объявления из Firebase
+        const fbCars = Object.values(data).filter(Boolean);
+        DB.saveCars(fbCars);
+        localStorage.setItem('automarket_initialized', 'true');
+        cars = fbCars;
+        render();
+
+        setSyncStatus('ok', `${fbCars.length} объявлений\nОбновлено: ${_lastSyncTime.toLocaleTimeString('ru-RU')}\nНажмите для обновления`);
+
     } catch (e) {
-        console.warn('Firebase недоступен, работаем offline:', e.message);
+        _syncError = e.message;
+        setSyncStatus('error', `Нет связи с Firebase:\n${e.message}\n\nНажмите для повтора`);
+        console.error('Firebase sync error:', e);
     }
 }
 
-// --- Firebase: залить все машины (bulk) ---
+// --- Firebase: залить все машины (первый запуск) ---
 async function pushAllCarsToFirebase(carsArr) {
-    if (!FIREBASE_URL) return;
+    if (!FIREBASE_URL) return false;
     try {
         const obj = {};
         carsArr.forEach(c => { obj[c.id] = c; });
-        await fetch(`${FIREBASE_URL}/cars.json`, {
+        const res = await fetch(`${FIREBASE_URL}/cars.json`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(obj)
         });
-        console.log('Тестовые данные загружены в Firebase:', carsArr.length, 'шт.');
+        if (!res.ok) {
+            const err = await res.text();
+            setSyncStatus('error', `Ошибка записи Firebase: HTTP ${res.status}\n${err}\n\nВозможно нет прав — проверьте Rules в Firebase Console`);
+            console.error('Firebase PUT error:', res.status, err);
+            return false;
+        }
+        console.log('Firebase: загружено', carsArr.length, 'объявлений');
+        return true;
     } catch (e) {
-        console.warn('Ошибка записи в Firebase:', e.message);
+        setSyncStatus('error', `Ошибка записи: ${e.message}`);
+        console.error('Firebase pushAll error:', e);
+        return false;
     }
 }
 
@@ -86,19 +131,28 @@ async function pushAllCarsToFirebase(carsArr) {
 async function pushCarToFirebase(car) {
     if (!FIREBASE_URL) return;
     try {
-        await fetch(`${FIREBASE_URL}/cars/${car.id}.json`, {
+        const res = await fetch(`${FIREBASE_URL}/cars/${car.id}.json`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(car)
         });
-    } catch (e) { console.warn('Firebase pushCar error:', e.message); }
+        if (!res.ok) {
+            const err = await res.text();
+            console.error('Firebase pushCar error:', res.status, err);
+            setSyncStatus('error', `Ошибка сохранения объявления: HTTP ${res.status}\n${err}\n\nПроверьте Rules в Firebase Console`);
+        }
+    } catch (e) {
+        console.error('Firebase pushCar network error:', e.message);
+        setSyncStatus('warn', `Объявление не сохранено в облако: ${e.message}`);
+    }
 }
 
 // --- Firebase: удалить машину ---
 async function deleteCarFromFirebase(carId) {
     if (!FIREBASE_URL) return;
     try {
-        await fetch(`${FIREBASE_URL}/cars/${carId}.json`, { method: 'DELETE' });
+        const res = await fetch(`${FIREBASE_URL}/cars/${carId}.json`, { method: 'DELETE' });
+        if (!res.ok) console.error('Firebase delete error:', res.status);
     } catch (e) { console.warn('Firebase deleteCar error:', e.message); }
 }
 
