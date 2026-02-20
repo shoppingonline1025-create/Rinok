@@ -1616,7 +1616,14 @@ function handleSubmit(e) {
         return;
     }
     
-    // Валидация марки и модели
+    const category = document.getElementById('category').value;
+    
+    if (!category) {
+        tg.showAlert('Выберите категорию');
+        return;
+    }
+    
+    // Валидация марки
     const brandValue = document.getElementById('formBrand').value;
     const modelValue = document.getElementById('formModel').value;
     
@@ -1625,7 +1632,8 @@ function handleSubmit(e) {
         return;
     }
     
-    if (!modelValue || !modelValue.trim()) {
+    // Для запчастей модель опциональна, для остальных — обязательна
+    if (category !== 'parts' && (!modelValue || !modelValue.trim())) {
         tg.showAlert('Пожалуйста, выберите модель');
         return;
     }
@@ -1639,11 +1647,10 @@ function handleSubmit(e) {
         return;
     }
     
-    // Валидация объема двигателя (только цифры и точка)
+    // Валидация объема двигателя (только для не-запчастей)
     const engineEl = document.getElementById('engine');
     if (category !== 'parts' && engineEl && engineEl.value.trim()) {
         const engineValue = engineEl.value.trim();
-        // Проверяем что формат X.X л (цифры и точка)
         if (!/^\d+(\.\d+)?\s*(л)?$/i.test(engineValue)) {
             tg.showAlert('Объем двигателя: укажите только цифры (например: 2.5 или 2.5 л)');
             engineEl.focus();
@@ -1652,7 +1659,6 @@ function handleSubmit(e) {
     }
     
     // Валидация для запчастей
-    const category = document.getElementById('category').value;
     if (category === 'parts') {
         const partType = document.getElementById('partType')?.value;
         const condition = document.getElementById('condition')?.value;
@@ -2487,37 +2493,44 @@ function withdrawBalance() {
 
 
 // ─── Модальное окно выбора типа детали ────────────────────────
+function getPartTypeIcon(type) {
+    const icons = {
+        'Двигатель и навесное': '🔩', 'КПП и сцепление': '⚙️',
+        'Кузовные детали': '🚪', 'Оптика': '💡', 'Салон': '🪑',
+        'Подвеска и рулевое': '🔧', 'Тормозная система': '⛔',
+        'Электрика и датчики': '⚡', 'Шины и диски': '🛞',
+        'Аудио и мультимедия': '🎵', 'Другое': '📦'
+    };
+    return icons[type] || '🔧';
+}
+
 function openPartTypeModal() {
     if (typeof PARTS_TYPES === 'undefined') {
         tg.showAlert('Данные не загружены');
         return;
     }
-    
     const grid = document.getElementById('partTypeGrid');
-    grid.innerHTML = PARTS_TYPES.map((item, idx) => `
+    grid.innerHTML = PARTS_TYPES.map(item => `
         <div class="part-type-option ${formSelectedPartType === item.type ? 'selected' : ''}" 
              onclick="selectPartType('${item.type.replace(/'/g, "\'")}')">
+            <div class="part-type-icon">${getPartTypeIcon(item.type)}</div>
             <div class="part-type-name">${item.type}</div>
             <div class="part-type-desc">${item.desc}</div>
         </div>
     `).join('');
-    
     document.getElementById('partTypeModal').classList.add('show');
 }
 
+// Нажатие = сразу выбор + закрытие (без кнопки Применить)
 function selectPartType(type) {
     formSelectedPartType = type;
-    document.querySelectorAll('.part-type-option').forEach(el => {
-        const name = el.querySelector('.part-type-name').textContent;
-        el.classList.toggle('selected', name === type);
-    });
+    document.getElementById('partTypeInput').value = type;
+    document.getElementById('partType').value = type;
+    closeModal('partTypeModal');
 }
 
 function confirmPartType() {
-    if (!formSelectedPartType) {
-        tg.showAlert('Выберите тип детали');
-        return;
-    }
+    if (!formSelectedPartType) return;
     document.getElementById('partTypeInput').value = formSelectedPartType;
     document.getElementById('partType').value = formSelectedPartType;
     closeModal('partTypeModal');
@@ -2652,11 +2665,18 @@ function openFormModelModal() {
         return;
     }
     
-    const models = BRANDS_DATA[cat]?.[brand] || [];
+    // Для запчастей берём модели из списка легковых (как и для брендов)
+    const brandsSource = (cat === 'parts') ? 'car' : cat;
+    const models = BRANDS_DATA[brandsSource]?.[brand] || [];
     const grid = document.getElementById('formModelGrid');
     
+    if (models.length === 0) {
+        tg.showAlert('Для выбранной марки нет моделей');
+        return;
+    }
+    
     grid.innerHTML = models.map(model => 
-        `<div class="form-brand-option ${formSelectedModel === model ? 'selected' : ''}" onclick="selectFormModel('${model}')">${model}</div>`
+        `<div class="form-brand-option ${formSelectedModel === model ? 'selected' : ''}" onclick="selectFormModel('${model.replace(/'/g, "\\'")}')">${model}</div>`
     ).join('');
     
     document.getElementById('formModelModal').classList.add('show');
