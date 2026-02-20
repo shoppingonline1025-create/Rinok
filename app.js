@@ -1591,32 +1591,29 @@ function editListing(carId) {
 
 function navigate(page) {
     document.querySelectorAll('.nav-button').forEach(b => b.classList.remove('active'));
-    event?.target?.closest('.nav-button')?.classList.add('active');
-    
+    try { event?.target?.closest('.nav-button')?.classList.add('active'); } catch(e) {}
+
+    // Закрываем ВСЕ оверлейные страницы перед каждым переходом
+    closePage('addPage');
+    closePage('detailPage');
+    closePage('profilePage');
+    closePage('favoritesPage');
+
     if (page === 'main') {
-        closePage('addPage');
-        closePage('detailPage');
-        closePage('profilePage');
         currentSection = 'all';
         render();
     } else if (page === 'add') {
-        closePage('profilePage');
-        editingCarId = null; // Сброс режима редактирования
-        document.querySelector('#addForm button[type="submit"]').textContent = 'Опубликовать';
-        // Автозаполняем телефон из профиля пользователя
+        editingCarId = null;
+        const submitBtn = document.querySelector('#addForm button[type="submit"]');
+        if (submitBtn) submitBtn.textContent = 'Опубликовать';
         const phoneEl = document.getElementById('listingPhone');
         if (phoneEl && !phoneEl.value && currentUser?.phone) {
             phoneEl.value = currentUser.phone;
         }
         document.getElementById('addPage').classList.add('show');
     } else if (page === 'favorites') {
-        closePage('addPage');
-        closePage('detailPage');
-        closePage('profilePage');
         openFavorites();
     } else if (page === 'profile') {
-        closePage('addPage');
-        closePage('detailPage');
         openProfile();
     } else {
         tg.showAlert('В разработке');
@@ -3057,7 +3054,11 @@ function openProfile() {
     document.getElementById('profileTotalViews').textContent = currentUser.views || 0;
     document.getElementById('profileAvgRating').textContent = currentUser.ratingPoints || 0;
     
-    renderMyListings();
+    try {
+        renderMyListings();
+    } catch(e) {
+        console.error('renderMyListings error:', e);
+    }
     
     openPageWithLock('profilePage');
 }
@@ -3094,8 +3095,10 @@ function getViews(carId) {
 }
 
 function renderMyListings() {
+    if (!currentUser) return;
     const myListings = cars.filter(c => String(c.userId) === String(currentUser.id));
     const container = document.getElementById('myListingsContainer');
+    if (!container) return; // страница профиля ещё не в DOM
     
     if (myListings.length === 0) {
         container.innerHTML = `<div class="my-listings-empty"><div class="my-listings-empty-icon">📋</div><div>У вас пока нет объявлений</div></div>`;
