@@ -2304,10 +2304,9 @@ function canUseTempTop() {
 }
 
 // Активировать временный Топ для объявления (24ч)
-function activateTempTop(carId) {
+function activateTempTop(carId, skipConfirm = false) {
     carId = Number(carId);
     
-    // Проверяем, нет ли уже активного tempTop у этого пользователя
     const activeTempTop = currentUser.tempTop;
     if (activeTempTop && activeTempTop.carId && new Date(activeTempTop.expiresAt) > new Date()) {
         const remaining = getTimeLeft(activeTempTop.expiresAt);
@@ -2318,24 +2317,9 @@ function activateTempTop(carId) {
     const car = cars.find(c => c.id === carId);
     if (!car) return;
     
-    const carTitle = `${car.partTitle || car.brand + ' ' + car.model}`.trim();
-    
-    tg.showPopup({
-        title: '🔥 Добавить в Топ',
-        message: `${carTitle}\n\n✓ Объявление появится в разделе «Топ»\n✓ Срок: 24 часа\n✓ Оригинал останется в общем списке\n\nАктивировать бесплатно?`,
-        buttons: [
-            {id: 'yes', type: 'default', text: 'Активировать'},
-            {id: 'no', type: 'cancel', text: 'Отмена'}
-        ]
-    }, (btn) => {
-        if (btn !== 'yes') return;
-        
+    const doTop = () => {
         const expiresAt = new Date(Date.now() + 24 * 3600000).toISOString();
-        
-        // Сохраняем tempTop в профиле
         currentUser.tempTop = { carId, expiresAt };
-        
-        // Помечаем объявление как isTop временно
         const carIdx = cars.findIndex(c => c.id === carId);
         if (carIdx !== -1) {
             cars[carIdx].isTop = true;
@@ -2343,12 +2327,27 @@ function activateTempTop(carId) {
             DB.saveCars(cars);
             pushCarToFirebase(cars[carIdx]);
         }
-        
         saveUser();
         render();
         renderMyListings();
-        tg.showAlert(`✅ Объявление добавлено в Топ!\nДействует до: ${new Date(expiresAt).toLocaleString('ru-RU', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}`);
-    });
+        const expStr = new Date(expiresAt).toLocaleString('ru-RU', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+        tg.showAlert(`✅ Объявление в Топе!\nДействует до: ${expStr}`);
+    };
+
+    if (skipConfirm) {
+        doTop();
+        return;
+    }
+
+    const carTitle = `${car.partTitle || car.brand + ' ' + car.model}`.trim();
+    tg.showPopup({
+        title: '🔥 Добавить в Топ',
+        message: `${carTitle}\n\n✓ В разделе «Топ» 24 часа\n✓ Оригинал остаётся в общем списке`,
+        buttons: [
+            {id: 'yes', type: 'default', text: 'Активировать'},
+            {id: 'no', type: 'cancel', text: 'Отмена'}
+        ]
+    }, (btn) => { if (btn === 'yes') doTop(); });
 }
 
 // Удалить истёкшие временные Топы
@@ -2669,146 +2668,175 @@ function switchProfileTab(tab) {
 // ─── Раздел достижений ────────────────────────────────────────
 function renderAchievements() {
     const pts = currentUser.ratingPoints || 0;
-    const currLevel = getRatingLevel(pts);
     const container = document.getElementById('achievementsContainer');
     if (!container) return;
 
-    // Проверяем активные бонусы пользователя
+    // Статус услуг
     const boost12hExpiresAt = currentUser.boost12hActivated || null;
     const boost12hActive    = boost12hExpiresAt && new Date(boost12hExpiresAt) > new Date();
-    const boost12hExpired   = boost12hExpiresAt && !boost12hActive;
     const boost12hLeft      = boost12hActive ? getTimeLeft(boost12hExpiresAt) : null;
-    const boost12hAvail     = currLevel.level >= 1;
-    const tempTopAvail      = currLevel.level >= 2;
 
-    // Статус tempTop
     const tt = currentUser.tempTop;
-    const tempTopActive = tt?.carId && new Date(tt.expiresAt) > new Date();
+    const tempTopActive = tt?.carId && new Date(tt?.expiresAt) > new Date();
     const tempTopLeft   = tempTopActive ? getTimeLeft(tt.expiresAt) : null;
 
-    // Статус 12ч буста
-    const boostLeft = getNextFreeBoostTime();
-
-    const LEVELS = [
+    const SHOP_ITEMS = [
         {
-            level: 0, badge: '⚪', name: 'Новичок', range: '0 – 149 очков',
-            color: '#888',
-            perks: [],
-            desc: 'Начальный уровень. Публикуйте объявления, заполняйте профиль и зарабатывайте очки!'
+            id: 'boost12h',
+            icon: '⬆️',
+            title: 'Поднятие раз в 12 часов',
+            desc: 'Бесплатно поднимать объявления каждые 12ч вместо 24ч. Действует 3 суток.',
+            cost: 150,
+            active: boost12hActive,
+            activeLabel: boost12hLeft ? `Активно · осталось ${boost12hLeft}` : 'Активно',
+            action: "buyBoost12h()"
         },
         {
-            level: 1, badge: '🟢', name: 'Участник', range: '150 – 499 очков',
-            color: '#4caf50',
-            perks: ['boost12h'],
-            desc: 'Доступно бесплатное поднятие раз в 12 часов (вместо 24ч).'
-        },
-        {
-            level: 2, badge: '🔵', name: 'Надёжный', range: '500 – 1199 очков',
-            color: '#2196f3',
-            perks: ['boost12h', 'tempTop'],
-            desc: 'Поднятие раз в 12ч + одно объявление в Топ на 24 часа.'
-        },
-        {
-            level: 3, badge: '🟣', name: 'Опытный', range: '1200 – 2999 очков',
-            color: '#9c27b0',
-            perks: ['boost12h', 'tempTop'],
-            desc: 'Все бонусы уровня 2. Новые привилегии скоро!'
-        },
-        {
-            level: 4, badge: '🌟', name: 'Эксперт', range: '3000+ очков',
-            color: '#ffc107',
-            perks: ['boost12h', 'tempTop'],
-            desc: 'Максимальный уровень. Все привилегии платформы.'
+            id: 'tempTop',
+            icon: '🔥',
+            title: 'Объявление в Топ на 24 часа',
+            desc: 'Одно объявление дублируется в раздел «Топ» на 24 часа. После — остаётся в общих.',
+            cost: 200,
+            active: tempTopActive,
+            activeLabel: tempTopLeft ? `Активно · осталось ${tempTopLeft}` : 'Активно',
+            action: "buyTempTop()"
         }
     ];
 
-    container.innerHTML = LEVELS.map(lvl => {
-        const isUnlocked = currLevel.level >= lvl.level;
-        const isCurrent  = currLevel.level === lvl.level;
-
-        // Кнопки активации бонусов
-        let perkButtons = '';
-
-        if (lvl.perks.includes('boost12h')) {
-            if (!isUnlocked) {
-                perkButtons += `<div class="ach-perk locked">⬆️ Поднятие раз в 12ч <span class="ach-lock">🔒</span></div>`;
-            } else if (boost12hActive) {
-                // Активен — показываем сколько осталось
-                const nextBoost = getNextFreeBoostTime();
-                const boostStatus = nextBoost
-                    ? `<span class="ach-status active">до ${new Date(currentUser.boost12hActivated).toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit'})}</span>`
-                    : `<span class="ach-status ready">Готово к использованию</span>`;
-                perkButtons += `<div class="ach-perk active">⬆️ Поднятие раз в 12ч · осталось ${boost12hLeft} ${boostStatus}</div>`;
-            } else if (boost12hExpired) {
-                // Истёк — кнопка продления
-                perkButtons += `<div class="ach-perk available" onclick="activate12hBoost()">⬆️ Поднятие раз в 12ч <span class="ach-activate">Продлить →</span></div>`;
-            } else {
-                // Никогда не активировался
-                perkButtons += `<div class="ach-perk available" onclick="activate12hBoost()">⬆️ Поднятие раз в 12ч <span class="ach-activate">Активировать →</span></div>`;
-            }
-        }
-
-        if (lvl.perks.includes('tempTop')) {
-            if (!isUnlocked) {
-                perkButtons += `<div class="ach-perk locked">🔥 Объявление в Топ на 24ч <span class="ach-lock">🔒</span></div>`;
-            } else if (tempTopActive) {
-                perkButtons += `<div class="ach-perk active">🔥 Топ активен · осталось ${tempTopLeft}</div>`;
-            } else {
-                perkButtons += `<div class="ach-perk available" onclick="chooseTempTopListing()">🔥 Объявление в Топ на 24ч <span class="ach-activate">Активировать →</span></div>`;
-            }
-        }
-
-        if (!lvl.perks.length) {
-            perkButtons = `<div class="ach-perk locked" style="opacity:0.5">Бонусов нет · копите очки!</div>`;
-        }
-
-        return `
-        <div class="ach-card ${isUnlocked ? 'unlocked' : 'locked-card'} ${isCurrent ? 'current' : ''}" style="--lc:${lvl.color}">
-            <div class="ach-header">
-                <span class="ach-badge">${lvl.badge}</span>
-                <div class="ach-title-block">
-                    <div class="ach-name">${lvl.name}</div>
-                    <div class="ach-range">${lvl.range}</div>
+    container.innerHTML = `
+        <div class="shop-balance-card">
+            <div class="shop-balance-label">Ваш баланс</div>
+            <div class="shop-balance-pts">${pts} <span class="shop-balance-unit">очков</span></div>
+            <div class="shop-balance-hint">Зарабатывайте очки за активность в приложении</div>
+        </div>
+        <div class="shop-section-title">🛒 Магазин услуг</div>
+        ${SHOP_ITEMS.map(item => {
+            const canAfford = pts >= item.cost;
+            return `
+            <div class="shop-item ${item.active ? 'shop-active' : ''} ${!canAfford && !item.active ? 'shop-unaffordable' : ''}">
+                <div class="shop-item-header">
+                    <span class="shop-item-icon">${item.icon}</span>
+                    <div class="shop-item-info">
+                        <div class="shop-item-title">${item.title}</div>
+                        <div class="shop-item-desc">${item.desc}</div>
+                    </div>
                 </div>
-                ${isCurrent ? '<span class="ach-you-tag">Вы здесь</span>' : ''}
-                ${isUnlocked && !isCurrent ? '<span class="ach-done">✓</span>' : ''}
-            </div>
-            <div class="ach-desc">${lvl.desc}</div>
-            ${perkButtons ? `<div class="ach-perks">${perkButtons}</div>` : ''}
-        </div>`;
-    }).join('');
+                <div class="shop-item-footer">
+                    ${item.active
+                        ? `<div class="shop-item-status">${item.activeLabel}</div>`
+                        : `<div class="shop-item-cost ${canAfford ? '' : 'shop-not-enough'}">
+                               ${canAfford ? '⭐' : '🔒'} ${item.cost} очков
+                           </div>
+                           <button class="shop-buy-btn ${canAfford ? '' : 'shop-disabled'}"
+                               onclick="${canAfford ? item.action : ''}">
+                               ${canAfford ? 'Купить' : 'Мало очков'}
+                           </button>`
+                    }
+                </div>
+            </div>`;
+        }).join('')}
+    `;
 }
-
 // Активировать режим 12ч поднятий на 3 суток
-function activate12hBoost() {
+function activate12hBoost() { buyBoost12h(); }
+
+function buyBoost12h() {
     const pts = currentUser.ratingPoints || 0;
-    if (getRatingLevel(pts).level < 1) {
-        tg.showAlert('Доступно с уровня 1 (150 очков)');
+    const COST = 150;
+
+    if (boost12hActive_()) {
+        tg.showAlert(`Уже активно!\nОсталось: ${getTimeLeft(currentUser.boost12hActivated)}`);
         return;
     }
-    // Уже активен и не истёк?
-    if (currentUser.boost12hActivated && new Date(currentUser.boost12hActivated) > new Date()) {
-        const left = getTimeLeft(currentUser.boost12hActivated);
-        tg.showAlert(`Бонус уже активен!\nОсталось: ${left}`);
+    if (pts < COST) {
+        tg.showAlert(`Недостаточно очков.\nНужно: ${COST} · У вас: ${pts}`);
         return;
     }
 
     tg.showPopup({
         title: '⬆️ Поднятие раз в 12 часов',
-        message: 'Активировать бесплатное поднятие каждые 12 часов?\n\n✓ Срок действия: 3 суток\n✓ После истечения можно активировать снова.',
+        message: `Списать ${COST} очков?\n\n✓ Поднятие объявлений каждые 12ч\n✓ Срок: 3 суток\n✓ Ваш баланс после: ${pts - COST} очков`,
         buttons: [
-            {id: 'yes', type: 'default', text: 'Активировать на 3 суток'},
+            {id: 'yes', type: 'default', text: `Купить за ${COST} очков`},
             {id: 'no',  type: 'cancel',  text: 'Отмена'}
         ]
     }, (btn) => {
         if (btn !== 'yes') return;
-        // Сохраняем дату истечения (3 суток)
+        currentUser.ratingPoints -= COST;
         const expiresAt = new Date(Date.now() + 3 * 24 * 3600000).toISOString();
         currentUser.boost12hActivated = expiresAt;
         saveUser();
         const expStr = new Date(expiresAt).toLocaleString('ru-RU', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
-        tg.showAlert(`✅ Активировано до ${expStr}!\nТеперь можно поднимать объявления раз в 12 часов.`);
+        tg.showAlert(`✅ Активировано до ${expStr}!\nТеперь можно поднимать раз в 12 часов.\nОстаток очков: ${currentUser.ratingPoints}`);
         renderAchievements();
+        renderRatingLevel();
+    });
+}
+
+// Вспомогательная без параметров
+function boost12hActive_() {
+    const exp = currentUser.boost12hActivated;
+    return exp && new Date(exp) > new Date();
+}
+
+function buyTempTop() {
+    const pts = currentUser.ratingPoints || 0;
+    const COST = 200;
+    const tt = currentUser.tempTop;
+    const alreadyActive = tt?.carId && new Date(tt?.expiresAt) > new Date();
+
+    if (alreadyActive) {
+        tg.showAlert(`Уже активно!\nОсталось: ${getTimeLeft(tt.expiresAt)}`);
+        return;
+    }
+    if (pts < COST) {
+        tg.showAlert(`Недостаточно очков.\nНужно: ${COST} · У вас: ${pts}`);
+        return;
+    }
+
+    const myListings = cars.filter(c => c.userId === currentUser.id);
+    if (!myListings.length) {
+        tg.showAlert('У вас нет активных объявлений');
+        return;
+    }
+
+    const doActivate = (carId) => {
+        currentUser.ratingPoints -= COST;
+        activateTempTop(carId, true); // true = уже списали очки
+        saveUser();
+        renderAchievements();
+        renderRatingLevel();
+    };
+
+    if (myListings.length === 1) {
+        const car = myListings[0];
+        const title = (car.partTitle || `${car.brand} ${car.model}`).trim();
+        tg.showPopup({
+            title: '🔥 Объявление в Топ',
+            message: `Списать ${COST} очков?\n\n«${title}»\n✓ В разделе Топ на 24 часа\n✓ Ваш баланс после: ${pts - COST} очков`,
+            buttons: [
+                {id: 'yes', type: 'default', text: `Купить за ${COST} очков`},
+                {id: 'no',  type: 'cancel',  text: 'Отмена'}
+            ]
+        }, (btn) => { if (btn === 'yes') doActivate(car.id); });
+        return;
+    }
+
+    // Несколько объявлений — выбор
+    const buttons = myListings.slice(0, 5).map(c => ({
+        id: String(c.id),
+        type: 'default',
+        text: `${(c.partTitle || c.brand + ' ' + (c.model||'')).trim()} · ${fmt(c.price)} ${c.currency}`.substring(0, 40)
+    }));
+    buttons.push({id: 'cancel', type: 'cancel', text: 'Отмена'});
+
+    tg.showPopup({
+        title: '🔥 Выберите объявление для Топа',
+        message: `Стоимость: ${COST} очков · Срок: 24 часа\nВаш баланс после: ${pts - COST} очков`,
+        buttons
+    }, (btn) => {
+        if (btn === 'cancel' || !btn) return;
+        doActivate(Number(btn));
     });
 }
 
