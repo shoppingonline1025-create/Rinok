@@ -1522,18 +1522,21 @@ function deleteListing(carId) {
         ]
     }, function(buttonId) {
         if (buttonId === 'delete') {
-            cars = DB.deleteCar(carId);
+            // Удаляем из памяти (сохраняем все чужие объявления)
+            cars = cars.filter(c => c.id !== carId);
+            // Удаляем из localStorage (только метаданные)
+            DB.saveCars(cars);
+            // Удаляем из Firebase
             deleteCarFromFirebase(carId);
             
-            // Удаляем из списка пользователя
-            const index = currentUser.listings.indexOf(carId);
-            if (index > -1) {
-                currentUser.listings.splice(index, 1);
+            // Удаляем из списка пользователя (id может быть числом или строкой)
+            if (currentUser.listings) {
+                currentUser.listings = currentUser.listings.filter(id => String(id) !== String(carId));
                 saveUser();
             }
             
-            tg.showAlert('Объявление удалено');
-            openProfile();
+            tg.showAlert('Объявление удалено', () => {});
+            renderMyListings();
             render();
         }
     });
@@ -1734,9 +1737,29 @@ function removeVideo() {
 
 function handleSubmit(e) {
     e.preventDefault();
-    
+
+    // Блокируем кнопку немедленно — защита от двойного нажатия
+    const submitBtn = document.querySelector('#addForm button[type="submit"]');
+    if (submitBtn && submitBtn.dataset.submitting === 'true') {
+        return; // уже отправляется — игнорируем
+    }
+    if (submitBtn) {
+        submitBtn.dataset.submitting = 'true';
+        submitBtn.textContent = '⏳ Публикация...';
+        submitBtn.disabled = true;
+    }
+
+    function unblockSubmit() {
+        if (submitBtn) {
+            submitBtn.dataset.submitting = 'false';
+            submitBtn.textContent = 'Опубликовать';
+            submitBtn.disabled = false;
+        }
+    }
+
     if (!currentUser) {
         tg.showAlert('Ошибка: пользователь не авторизован');
+        unblockSubmit();
         return;
     }
     
@@ -1744,6 +1767,7 @@ function handleSubmit(e) {
     
     if (!category) {
         tg.showAlert('Выберите категорию');
+        unblockSubmit();
         return;
     }
     
@@ -1753,12 +1777,14 @@ function handleSubmit(e) {
     
     if (!brandValue || !brandValue.trim()) {
         tg.showAlert('Пожалуйста, выберите марку');
+        unblockSubmit();
         return;
     }
     
     // Для запчастей модель опциональна, для остальных — обязательна
     if (category !== 'parts' && (!modelValue || !modelValue.trim())) {
         tg.showAlert('Пожалуйста, выберите модель');
+        unblockSubmit();
         return;
     }
     
@@ -1768,6 +1794,7 @@ function handleSubmit(e) {
     if (!phoneValue) {
         tg.showAlert('Укажите номер телефона — покупатели смогут написать вам в Telegram');
         phoneInput && phoneInput.focus();
+        unblockSubmit();
         return;
     }
     
@@ -1789,14 +1816,17 @@ function handleSubmit(e) {
         const partTitle = document.getElementById('partTitle')?.value?.trim();
         if (!partType) {
             tg.showAlert('Укажите тип детали');
+            unblockSubmit();
             return;
         }
         if (!condition) {
             tg.showAlert('Укажите состояние');
+            unblockSubmit();
             return;
         }
         if (!partTitle) {
             tg.showAlert('Укажите заголовок объявления');
+            unblockSubmit();
             return;
         }
     }
@@ -1848,8 +1878,9 @@ function handleSubmit(e) {
         if (editIdx !== -1) cars[editIdx] = { ...cars[editIdx], ...carData };
         DB.saveCars(cars);
         pushCarToFirebase(carData);
-        tg.showAlert('Изменения сохранены!');
+        tg.showAlert('Изменения сохранены!', () => {});
         editingCarId = null;
+        unblockSubmit();
     } else {
         // НОВОЕ ОБЪЯВЛЕНИЕ
         carData.id = Date.now() * 1000 + Math.floor(Math.random() * 1000);
@@ -1874,9 +1905,11 @@ function handleSubmit(e) {
         let msg = 'Объявление опубликовано!\n+10 очков рейтинга';
         if (uploadedPhotos.length >= 6) msg += '\n+10 за все фото';
         if (uploadedVideo) msg += '\n+10 за видео';
-        tg.showAlert(msg);
+        tg.showAlert(msg, () => {}); // callback чтобы alert точно показался
     }
-    
+
+    unblockSubmit();
+
     // Очистка формы
     document.getElementById('addForm').reset();
     uploadedPhotos = [];
@@ -2091,7 +2124,9 @@ function awardPoints(reason, customPoints = null) {
     });
     if (currentUser.ratingLog.length > 20) currentUser.ratingLog.length = 20;
 
-    saveUser();
+    // Сохраняем локально сразу, в Firebase — батчем через debounce
+    DB.saveUser(currentUser);
+    _debouncePushUser();
 
     // Уведомить если сменился уровень
     const prev = getRatingLevel(currentUser.ratingPoints - pts);
@@ -2183,6 +2218,17 @@ function checkListingAgeBonus() {
             awardPoints('LISTING_2_WEEKS');
         }
     });
+}
+
+// Debounce: отправляем пользователя в Firebase не чаще раза в 2 секунды
+// Это предотвращает зависание когда awardPoints вызывается 3 раза подряд
+let _pushUserTimer = null;
+function _debouncePushUser() {
+    if (_pushUserTimer) clearTimeout(_pushUserTimer);
+    _pushUserTimer = setTimeout(() => {
+        pushUserToFirebase(currentUser);
+        _pushUserTimer = null;
+    }, 2000);
 }
 
 function saveUser() {
