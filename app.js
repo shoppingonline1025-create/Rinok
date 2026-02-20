@@ -32,8 +32,35 @@ function enrichCarsWithSellerInfo(carsArr) {
 }
 
 // ╔══════════════════════════════════════════╗
-// ║  FIREBASE SYNC — полная перезапись       ║
+// ║  FIREBASE SDK — WebSocket реальное время ║
 // ╚══════════════════════════════════════════╝
+
+const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyAa6huTUbUQrcyUF6t770imckBGcRAelqA",
+    authDomain: "auto-market26.firebaseapp.com",
+    databaseURL: "https://auto-market26-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "auto-market26",
+    storageBucket: "auto-market26.firebasestorage.app",
+    messagingSenderId: "175310798996",
+    appId: "1:175310798996:web:42d5b24a8ac2ca6bd37481"
+};
+
+// Инициализация Firebase SDK
+let _fbApp = null;
+let _fbDb  = null;
+let _carsListener = null; // активная подписка на /cars
+
+function initFirebase() {
+    try {
+        _fbApp = firebase.initializeApp(FIREBASE_CONFIG);
+        _fbDb  = firebase.database();
+        console.log('Firebase SDK инициализирован ✅');
+        return true;
+    } catch(e) {
+        console.error('Firebase init error:', e);
+        return false;
+    }
+}
 
 let _lastSyncTime = null;
 let _syncError    = null;
@@ -47,185 +74,136 @@ function setSyncStatus(state, text) {
     el.dataset.state = state;
 }
 
-async function manualSync() {
-    setSyncStatus('loading', 'Синхронизация...');
-    await syncFromFirebase();
-    // Показываем нормальный алерт с результатом
+function manualSync() {
     const el = document.getElementById('syncStatus');
     const state = el?.dataset?.state;
     if (state === 'ok') {
-        tg.showAlert(`✅ Синхронизация OK · v6.9\n${el.title}`);
-    } else if (state === 'error' || state === 'warn') {
-        tg.showAlert(`❌ Ошибка синхронизации:\n\n${_syncError || el?.title || 'Неизвестная ошибка'}\n\nВерсия: v6.9`);
+        tg.showAlert(`✅ Firebase WebSocket · v7.1\n${cars.length} объявлений\nОбновлено: ${_lastSyncTime?.toLocaleTimeString('ru-RU') || '—'}\n\nДанные обновляются автоматически в реальном времени`);
+    } else if (state === 'error') {
+        tg.showAlert(`❌ Ошибка: ${_syncError || 'нет соединения'}\n\nПопробуйте перезапустить приложение`);
+    } else {
+        tg.showAlert('⏳ Подключение к Firebase...');
     }
 }
 
-// --- Firebase: прочитать все объявления и смержить с локальными ---
-async function syncFromFirebase() {
-    if (!FIREBASE_URL) return;
-    setSyncStatus('loading', 'Подключение к Firebase...');
-    try {
-        const res = await fetch(`${FIREBASE_URL}/cars.json`);
+// --- Подписка на /cars через WebSocket (realtime) ---
+function syncFromFirebase() {
+    if (!_fbDb) { console.warn('Firebase not ready'); return Promise.resolve(); }
 
-        if (!res.ok) {
-            const errText = await res.text();
-            _syncError = `HTTP ${res.status}: ${errText}`;
-            setSyncStatus('error', `Ошибка чтения: HTTP ${res.status}\n${errText}`);
-            console.error('Firebase read error:', res.status, errText);
-            return;
+    return new Promise((resolve) => {
+        setSyncStatus('loading', 'Подключение...');
+
+        // Отписываемся от предыдущего listener если был
+        if (_carsListener) {
+            firebase.database().ref('cars').off('value', _carsListener);
         }
 
-        const data = await res.json();
-        _lastSyncTime = new Date();
-        _syncError = null;
+        let firstLoad = true;
 
-        // Локальные объявления текущего пользователя (его данные актуальнее Firebase)
-        const localCars = DB.getCars();
-        const myCarIds = new Set(
-            localCars.filter(c => currentUser && c.userId == currentUser.id).map(c => c.id)
+        _carsListener = firebase.database().ref('cars').on('value',
+            (snapshot) => {
+                const data = snapshot.val();
+                _lastSyncTime = new Date();
+                _syncError = null;
+
+                if (!data) {
+                    // Firebase пуст — заливаем локальные данные
+                    const localCars = DB.getCars();
+                    if (localCars.length > 0) {
+                        pushAllCarsToFirebase(localCars);
+                        setSyncStatus('ok', `${localCars.length} объявл.`);
+                    } else {
+                        setSyncStatus('warn', 'База пуста');
+                    }
+                    if (firstLoad) { firstLoad = false; resolve(); }
+                    return;
+                }
+
+                const fbCars = Object.values(data).filter(Boolean);
+
+                // Свои локальные объявления которых ещё нет в Firebase — дозаливаем
+                const localCars = DB.getCars();
+                const fbIds = new Set(fbCars.map(c => String(c.id)));
+                localCars.forEach(localCar => {
+                    if (currentUser && String(localCar.userId) === String(currentUser.id)) {
+                        if (!fbIds.has(String(localCar.id))) {
+                            pushCarToFirebase(localCar);
+                            fbCars.push(localCar);
+                        }
+                    }
+                });
+
+                DB.saveCars(fbCars);
+                localStorage.setItem('automarket_initialized', 'true');
+                cars = fbCars;
+
+                if (firstLoad) {
+                    firstLoad = false;
+                    resolve(); // разблокируем await syncFromFirebase()
+                } else {
+                    // Последующие обновления — тихо рендерим
+                    render();
+                    setSyncStatus('ok', `${cars.length} объявл. · ${_lastSyncTime.toLocaleTimeString('ru-RU')}`);
+                }
+
+                setSyncStatus('ok', `${cars.length} объявл. · ${_lastSyncTime.toLocaleTimeString('ru-RU')}`);
+            },
+            (error) => {
+                _syncError = error.message;
+                setSyncStatus('error', error.message);
+                console.error('Firebase realtime error:', error);
+                if (firstLoad) { firstLoad = false; resolve(); }
+            }
         );
+    });
+}
 
-        if (!data) {
-            // Firebase пуст — загружаем локальные
-            if (localCars.length > 0) {
-                const ok = await pushAllCarsToFirebase(localCars);
-                if (ok) {
-                    setSyncStatus('ok', `Загружено ${localCars.length} объявлений · ${_lastSyncTime.toLocaleTimeString('ru-RU')}`);
-                }
-            } else {
-                setSyncStatus('warn', 'Firebase и локальное хранилище пусты');
-            }
-            return;
-        }
-
-        // Получаем все объявления из Firebase
-        const fbCars = Object.values(data).filter(Boolean);
-
-        // МЕРЖ: Firebase — источник истины (там хранятся фото!)
-        // Локальные данные используем ТОЛЬКО если объявление ещё не попало в Firebase
-        const merged = [...fbCars];
-        localCars.forEach(localCar => {
-            if (myCarIds.has(localCar.id)) {
-                const fbIdx = merged.findIndex(c => String(c.id) === String(localCar.id));
-                if (fbIdx === -1) {
-                    // Моё объявление есть локально но нет в Firebase — дозаливаем
-                    merged.push(localCar);
-                    pushCarToFirebase(localCar);
-                }
-                // Если уже есть в Firebase — НЕ заменяем (там есть фото, здесь нет)
-            }
+// --- Сохранить одну машину ---
+function pushCarToFirebase(car) {
+    if (!_fbDb) return;
+    firebase.database().ref(`cars/${car.id}`).set(car)
+        .catch(e => {
+            console.error('pushCar error:', e);
+            setSyncStatus('error', `Ошибка записи: ${e.message}`);
         });
-
-        DB.saveCars(merged);  // сохраняет только свои (без фото) — чужие только в памяти
-        localStorage.setItem('automarket_initialized', 'true');
-        cars = merged; // в памяти — полные данные всех пользователей из Firebase
-        render();
-
-        setSyncStatus('ok', `${merged.length} объявл. · ${_lastSyncTime.toLocaleTimeString('ru-RU')} · Нажмите для обновления`);
-
-    } catch (e) {
-        _syncError = e.message;
-        setSyncStatus('error', `Нет связи с Firebase: ${e.message}`);
-        console.error('Firebase sync error:', e);
-    }
 }
 
-// --- Firebase: залить машины (только дозапись, никогда не стирает чужие) ---
-async function pushAllCarsToFirebase(carsArr) {
-    if (!FIREBASE_URL) return false;
-    try {
-        // PATCH вместо PUT — дописываем, не перезаписываем базу целиком
-        const obj = {};
-        carsArr.forEach(c => { obj[c.id] = c; });
-        const res = await fetch(`${FIREBASE_URL}/cars.json`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(obj)
-        });
-        if (!res.ok) {
-            const err = await res.text();
-            _syncError = `Запись: HTTP ${res.status}: ${err}`;
-            setSyncStatus('error', `Ошибка записи: HTTP ${res.status}\n${err}`);
-            console.error('Firebase PATCH error:', res.status, err);
-            return false;
-        }
-        console.log('Firebase: дозаписано', carsArr.length, 'объявлений (PATCH)');
-        return true;
-    } catch (e) {
-        _syncError = e.message;
-        setSyncStatus('error', `Ошибка записи: ${e.message}`);
-        return false;
-    }
+// --- Залить несколько машин (первый запуск) ---
+function pushAllCarsToFirebase(carsArr) {
+    if (!_fbDb) return;
+    const obj = {};
+    carsArr.forEach(c => { obj[c.id] = c; });
+    return firebase.database().ref('cars').update(obj)
+        .catch(e => console.error('pushAll error:', e));
 }
 
-// --- Firebase: сохранить/обновить одну машину ---
-async function pushCarToFirebase(car) {
-    if (!FIREBASE_URL) return;
-    try {
-        const res = await fetch(`${FIREBASE_URL}/cars/${car.id}.json`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(car)
-        });
-        if (!res.ok) {
-            const err = await res.text();
-            console.error('Firebase pushCar error:', res.status, err);
-            setSyncStatus('error', `Ошибка сохранения объявления: HTTP ${res.status}\n${err}\n\nПроверьте Rules в Firebase Console`);
-        }
-    } catch (e) {
-        console.error('Firebase pushCar network error:', e.message);
-        setSyncStatus('warn', `Объявление не сохранено в облако: ${e.message}`);
-    }
+// --- Удалить машину ---
+function deleteCarFromFirebase(carId) {
+    if (!_fbDb) return;
+    firebase.database().ref(`cars/${carId}`).remove()
+        .catch(e => console.error('deleteCarFromFirebase error:', e));
 }
 
-// --- Firebase: удалить машину ---
-async function deleteCarFromFirebase(carId) {
-    if (!FIREBASE_URL) return;
-    try {
-        const res = await fetch(`${FIREBASE_URL}/cars/${carId}.json`, { method: 'DELETE' });
-        if (!res.ok) console.error('Firebase delete error:', res.status);
-    } catch (e) { console.warn('Firebase deleteCar error:', e.message); }
-}
-
-// ─── Firebase: работа с пользователями ───────────────────────
-
-// Сохранить пользователя в Firebase
+// --- Пользователи ---
 async function pushUserToFirebase(user) {
-    if (!FIREBASE_URL || !user?.id) return;
-    // Не пишем фото в Firebase (слишком большое), храним только данные
+    if (!_fbDb || !user?.id) return;
     const userToSave = {...user};
-    delete userToSave.photo; // фото только в localStorage
+    delete userToSave.photo;
     try {
-        await fetch(`${FIREBASE_URL}/users/${user.id}.json`, {
-            method: 'PUT',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(userToSave)
-        });
-    } catch (e) { console.warn('Firebase pushUser error:', e.message); }
+        await firebase.database().ref(`users/${user.id}`).set(userToSave);
+    } catch(e) { console.warn('pushUser error:', e.message); }
 }
 
-// Загрузить пользователя из Firebase (баланс, подписки, транзакции)
 async function loadUserFromFirebase(userId) {
-    if (!FIREBASE_URL || !userId) return null;
+    if (!_fbDb || !userId) return null;
     try {
-        const res = await fetch(`${FIREBASE_URL}/users/${userId}.json`);
-        if (!res.ok) return null;
-        const data = await res.json();
-        return data;
-    } catch (e) {
-        console.warn('Firebase loadUser error:', e.message);
+        const snap = await firebase.database().ref(`users/${userId}`).once('value');
+        return snap.val();
+    } catch(e) {
+        console.warn('loadUser error:', e.message);
         return null;
     }
 }
-
-// Firebase хранит массивы как объекты {"0":x,"1":y} — нормализуем обратно в массив
-function normalizeFirebaseArray(val) {
-    if (!val) return [];
-    if (Array.isArray(val)) return val;
-    // Firebase object → array
-    return Object.values(val);
-}
-
 // Нормализовать subscriptions после загрузки из Firebase
 function normalizeSubscriptions(subs) {
     if (!subs) return {autoBoost: {active: false, carIds: [], cars: {}}};
@@ -3468,19 +3446,34 @@ document.getElementById('searchInput').addEventListener('input', function(e) {
 
 // Инициализация приложения — ждём загрузку пользователя перед рендером
 (async () => {
+    // Показываем экран загрузки пока грузим данные из Firebase
+    const loadingEl = document.createElement('div');
+    loadingEl.id = 'appLoader';
+    loadingEl.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:60vh;gap:16px">
+        <div style="font-size:40px">🚗</div>
+        <div style="color:var(--text2);font-size:14px">Загрузка объявлений...</div>
+    </div>`;
+    document.body.appendChild(loadingEl);
+
+    // Инициализируем Firebase SDK
+    initFirebase();
+
     await initUser();
+
+    // Подключаемся к Firebase WebSocket — ждём первую загрузку данных
+    await syncFromFirebase();
+    // После этого syncFromFirebase продолжает слушать изменения в реальном времени
+    // setInterval больше не нужен — WebSocket сам пушит обновления
+
+    // Убираем лоадер и показываем контент
+    loadingEl.remove();
+
     render();
     updateFavBadge();
-    syncFromFirebase();
-    // Рейтинг и streak
     checkDailyStreak();
-    // Чистим истёкшие Топы
     cleanExpiredTempTops();
     setTimeout(() => {
         checkListingViewsMilestones();
         checkListingAgeBonus();
     }, 2000);
-    // Периодическая синхронизация каждые 30 секунд
-    // чтобы видеть объявления других пользователей без перезапуска
-    setInterval(() => syncFromFirebase(), 30000);
 })();
