@@ -50,9 +50,17 @@ function setSyncStatus(state, text) {
 async function manualSync() {
     setSyncStatus('loading', 'Синхронизация...');
     await syncFromFirebase();
+    // Показываем нормальный алерт с результатом
+    const el = document.getElementById('syncStatus');
+    const state = el?.dataset?.state;
+    if (state === 'ok') {
+        tg.showAlert(`✅ Синхронизация успешна\n${el.title}`);
+    } else if (state === 'error' || state === 'warn') {
+        tg.showAlert(`❌ Ошибка синхронизации:\n\n${_syncError || el?.title || 'Неизвестная ошибка'}\n\nВерсия: v6.5`);
+    }
 }
 
-// --- Firebase: прочитать все объявления ---
+// --- Firebase: прочитать все объявления и смержить с локальными ---
 async function syncFromFirebase() {
     if (!FIREBASE_URL) return;
     setSyncStatus('loading', 'Подключение к Firebase...');
@@ -62,7 +70,7 @@ async function syncFromFirebase() {
         if (!res.ok) {
             const errText = await res.text();
             _syncError = `HTTP ${res.status}: ${errText}`;
-            setSyncStatus('error', `Ошибка чтения: HTTP ${res.status}\n${errText}\n\nНажмите для повтора`);
+            setSyncStatus('error', `Ошибка чтения: HTTP ${res.status}\n${errText}`);
             console.error('Firebase read error:', res.status, errText);
             return;
         }
@@ -71,13 +79,18 @@ async function syncFromFirebase() {
         _lastSyncTime = new Date();
         _syncError = null;
 
+        // Локальные объявления текущего пользователя (его данные актуальнее Firebase)
+        const localCars = DB.getCars();
+        const myCarIds = new Set(
+            localCars.filter(c => currentUser && c.userId == currentUser.id).map(c => c.id)
+        );
+
         if (!data) {
-            // Firebase пуст — загружаем локальные данные
-            const localCars = DB.getCars();
+            // Firebase пуст — загружаем локальные
             if (localCars.length > 0) {
                 const ok = await pushAllCarsToFirebase(localCars);
                 if (ok) {
-                    setSyncStatus('ok', `Firebase пуст — загружено ${localCars.length} объявлений\nОбновлено: ${_lastSyncTime.toLocaleTimeString('ru-RU')}`);
+                    setSyncStatus('ok', `Загружено ${localCars.length} объявлений · ${_lastSyncTime.toLocaleTimeString('ru-RU')}`);
                 }
             } else {
                 setSyncStatus('warn', 'Firebase и локальное хранилище пусты');
@@ -87,42 +100,62 @@ async function syncFromFirebase() {
 
         // Получаем все объявления из Firebase
         const fbCars = Object.values(data).filter(Boolean);
-        DB.saveCars(fbCars);
+
+        // МЕРЖ: Firebase — источник истины, но свои локальные объявления приоритетнее
+        // (они могут содержать только что добавленные данные которые ещё не дошли до FB)
+        const merged = [...fbCars];
+        localCars.forEach(localCar => {
+            if (myCarIds.has(localCar.id)) {
+                const fbIdx = merged.findIndex(c => c.id == localCar.id);
+                if (fbIdx === -1) {
+                    // Моё объявление есть локально но нет в Firebase — добавляем и перезаливаем
+                    merged.push(localCar);
+                    pushCarToFirebase(localCar); // дозаливаем
+                } else {
+                    // Заменяем Firebase-версию локальной (она свежее для моих объявлений)
+                    merged[fbIdx] = localCar;
+                }
+            }
+        });
+
+        DB.saveCars(merged);
         localStorage.setItem('automarket_initialized', 'true');
-        cars = fbCars;
+        cars = merged;
         render();
 
-        setSyncStatus('ok', `${fbCars.length} объявлений\nОбновлено: ${_lastSyncTime.toLocaleTimeString('ru-RU')}\nНажмите для обновления`);
+        setSyncStatus('ok', `${merged.length} объявл. · ${_lastSyncTime.toLocaleTimeString('ru-RU')} · Нажмите для обновления`);
 
     } catch (e) {
         _syncError = e.message;
-        setSyncStatus('error', `Нет связи с Firebase:\n${e.message}\n\nНажмите для повтора`);
+        setSyncStatus('error', `Нет связи с Firebase: ${e.message}`);
         console.error('Firebase sync error:', e);
     }
 }
 
-// --- Firebase: залить все машины (первый запуск) ---
+// --- Firebase: залить машины (только дозапись, никогда не стирает чужие) ---
 async function pushAllCarsToFirebase(carsArr) {
     if (!FIREBASE_URL) return false;
     try {
+        // PATCH вместо PUT — дописываем, не перезаписываем базу целиком
         const obj = {};
         carsArr.forEach(c => { obj[c.id] = c; });
         const res = await fetch(`${FIREBASE_URL}/cars.json`, {
-            method: 'PUT',
+            method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(obj)
         });
         if (!res.ok) {
             const err = await res.text();
-            setSyncStatus('error', `Ошибка записи Firebase: HTTP ${res.status}\n${err}\n\nВозможно нет прав — проверьте Rules в Firebase Console`);
-            console.error('Firebase PUT error:', res.status, err);
+            _syncError = `Запись: HTTP ${res.status}: ${err}`;
+            setSyncStatus('error', `Ошибка записи: HTTP ${res.status}\n${err}`);
+            console.error('Firebase PATCH error:', res.status, err);
             return false;
         }
-        console.log('Firebase: загружено', carsArr.length, 'объявлений');
+        console.log('Firebase: дозаписано', carsArr.length, 'объявлений (PATCH)');
         return true;
     } catch (e) {
+        _syncError = e.message;
         setSyncStatus('error', `Ошибка записи: ${e.message}`);
-        console.error('Firebase pushAll error:', e);
         return false;
     }
 }
