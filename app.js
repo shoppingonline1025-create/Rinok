@@ -366,6 +366,15 @@ function selectCategory(cat) {
     document.querySelectorAll('.category-chip').forEach(c =>
         c.classList.toggle('active', c.dataset.category === cat)
     );
+    
+    // Для запчастей скрываем фильтры специфичные для транспорта
+    const vehicleOnlyFilters = ['yearFilter', 'mileageFilter', 'driveFilter', 'regFilter'];
+    const isParts = cat === 'parts';
+    vehicleOnlyFilters.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = isParts ? 'none' : '';
+    });
+    
     render();
 }
 
@@ -525,12 +534,13 @@ function changeAllPage(page) {
 }
 
 function getBrands() {
-    const cat = filters.category === 'all' ? 'car' : filters.category;
+    // parts не имеет своего раздела BRANDS_DATA — используем легковые
+    const cat = (filters.category === 'all' || filters.category === 'parts') ? 'car' : filters.category;
     return Object.keys(BRANDS_DATA[cat] || {}).sort();
 }
 
 function getModels(brand) {
-    const cat = filters.category === 'all' ? 'car' : filters.category;
+    const cat = (filters.category === 'all' || filters.category === 'parts') ? 'car' : filters.category;
     return BRANDS_DATA[cat]?.[brand] || [];
 }
 
@@ -864,6 +874,12 @@ function resetFilters() {
     if (document.getElementById('driveFilter')) {
         document.getElementById('driveFilter').textContent = 'Привод';
     }
+    
+    // Восстанавливаем видимость всех фильтров
+    ['yearFilter', 'mileageFilter', 'driveFilter', 'regFilter'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = '';
+    });
     
     document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
     
