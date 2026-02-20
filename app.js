@@ -135,23 +135,43 @@ async function loadUserFromFirebase(userId) {
     }
 }
 
+// Firebase хранит массивы как объекты {"0":x,"1":y} — нормализуем обратно в массив
+function normalizeFirebaseArray(val) {
+    if (!val) return [];
+    if (Array.isArray(val)) return val;
+    // Firebase object → array
+    return Object.values(val);
+}
+
+// Нормализовать subscriptions после загрузки из Firebase
+function normalizeSubscriptions(subs) {
+    if (!subs) return {autoBoost: {active: false, carIds: [], cars: {}}};
+    if (subs.autoBoost) {
+        subs.autoBoost.carIds = normalizeFirebaseArray(subs.autoBoost.carIds);
+        // cars — объект {carId: {activatedAt, expiresAt}}, нормализация не нужна
+        if (!subs.autoBoost.cars) subs.autoBoost.cars = {};
+    } else {
+        subs.autoBoost = {active: false, carIds: [], cars: {}};
+    }
+    return subs;
+}
+
 // Синхронизировать текущего пользователя с Firebase при входе
 async function syncUserFromFirebase(user) {
     const fbUser = await loadUserFromFirebase(user.id);
     if (!fbUser) {
-        // Пользователя нет в Firebase — загружаем туда
         await pushUserToFirebase(user);
         return user;
     }
     // Берём данные из Firebase (баланс, транзакции, подписки актуальнее)
+    const fbSubs = normalizeSubscriptions(fbUser.subscriptions);
     const merged = {
         ...user,
         balance: fbUser.balance ?? user.balance ?? 0,
-        transactions: fbUser.transactions ?? user.transactions ?? [],
-        subscriptions: fbUser.subscriptions ?? user.subscriptions ?? {autoBoost: {active: false, carIds: [], cars: {}}},
+        transactions: normalizeFirebaseArray(fbUser.transactions ?? user.transactions),
+        subscriptions: fbSubs,
         freeBoostAvailableAt: fbUser.freeBoostAvailableAt ?? user.freeBoostAvailableAt ?? null
     };
-    // Фото берём из localStorage (оно не пишется в Firebase)
     if (user.photo) merged.photo = user.photo;
     DB.saveUser(merged);
     return merged;
@@ -2053,21 +2073,35 @@ function performBoost(car) {
 
 
 function activateAutoBoost(carId) {
+    // Приводим к числу для надёжного сравнения
+    carId = Number(carId);
     const car = cars.find(c => c.id === carId);
     if (!car) return;
     
+    // Гарантируем структуру subscriptions
     if (!currentUser.subscriptions) currentUser.subscriptions = {};
     if (!currentUser.subscriptions.autoBoost) {
         currentUser.subscriptions.autoBoost = {active: false, carIds: [], cars: {}};
     }
-    
-    const hasActive = currentUser.subscriptions.autoBoost.active;
-    const carCount = currentUser.subscriptions.autoBoost.carIds?.length || 0;
-    
-    let cost = 50; // Первое объявление
-    if (hasActive && carCount > 0) {
-        cost = 20; // Дополнительные объявления
+    if (!Array.isArray(currentUser.subscriptions.autoBoost.carIds)) {
+        currentUser.subscriptions.autoBoost.carIds = normalizeFirebaseArray(currentUser.subscriptions.autoBoost.carIds);
     }
+    if (!currentUser.subscriptions.autoBoost.cars) {
+        currentUser.subscriptions.autoBoost.cars = {};
+    }
+    
+    const carIds = currentUser.subscriptions.autoBoost.carIds.map(Number);
+    const hasActive = currentUser.subscriptions.autoBoost.active;
+    const carCount = carIds.length;
+    
+    // Уже активно для этого объявления?
+    if (hasActive && carIds.includes(carId)) {
+        manageAutoBoost(carId);
+        return;
+    }
+    
+    let cost = 50; // первое объявление
+    if (hasActive && carCount > 0) cost = 20; // дополнительные
     
     const carTitle = `${car.brand} ${car.model} ${car.year || ''}`.trim();
     
@@ -2079,50 +2113,46 @@ function activateAutoBoost(carId) {
             {id: 'cancel', type: 'cancel', text: 'Отмена'}
         ]
     }, (btnId) => {
-        if (btnId === 'buy') {
-            if (!hasBalance(cost)) {
-                tg.showPopup({
-                    title: 'Недостаточно средств',
-                    message: `Стоимость: ${cost} лей\nВаш баланс: ${currentUser.balance || 0} лей\n\nПополнить баланс?`,
-                    buttons: [
-                        {id: 'topup', type: 'default', text: 'Пополнить'},
-                        {id: 'cancel', type: 'cancel', text: 'Отмена'}
-                    ]
-                }, (b) => { if (b === 'topup') openTopUp(); });
-                return;
-            }
-            
-            if (!deductBalance(cost, 'autoboost', {carId, title: carTitle})) return;
-            
-            // Срок действия — месяц с сегодня
-            const expiresAt = new Date();
-            expiresAt.setMonth(expiresAt.getMonth() + 1);
-            const expiresStr = expiresAt.toISOString();
-            
-            // Активируем подписку для конкретного объявления
-            currentUser.subscriptions.autoBoost.active = true;
-            if (!currentUser.subscriptions.autoBoost.carIds.includes(carId)) {
-                currentUser.subscriptions.autoBoost.carIds.push(carId);
-            }
-            // Храним per-car срок
-            if (!currentUser.subscriptions.autoBoost.cars) {
-                currentUser.subscriptions.autoBoost.cars = {};
-            }
-            currentUser.subscriptions.autoBoost.cars[carId] = {
-                activatedAt: new Date().toISOString(),
-                expiresAt: expiresStr
-            };
-            
-            saveUser(); // localStorage + Firebase
-            renderMyListings();
-            renderProfile();
-            
-            tg.showAlert(`✅ Автоподнятие активировано!\nАктивно до: ${expiresAt.toLocaleDateString('ru-RU')}`);
+        if (btnId !== 'buy') return;
+        
+        if (!hasBalance(cost)) {
+            tg.showPopup({
+                title: 'Недостаточно средств',
+                message: `Стоимость: ${cost} лей\nВаш баланс: ${currentUser.balance || 0} лей\n\nПополнить баланс?`,
+                buttons: [
+                    {id: 'topup', type: 'default', text: 'Пополнить'},
+                    {id: 'cancel', type: 'cancel', text: 'Отмена'}
+                ]
+            }, (b) => { if (b === 'topup') openTopUp(); });
+            return;
         }
+        
+        if (!deductBalance(cost, 'autoboost', {carId, title: carTitle})) return;
+        
+        // Срок действия — месяц с сегодня
+        const expiresAt = new Date();
+        expiresAt.setMonth(expiresAt.getMonth() + 1);
+        
+        currentUser.subscriptions.autoBoost.active = true;
+        // Храним ID как числа
+        if (!currentUser.subscriptions.autoBoost.carIds.map(Number).includes(carId)) {
+            currentUser.subscriptions.autoBoost.carIds.push(carId);
+        }
+        currentUser.subscriptions.autoBoost.cars[carId] = {
+            activatedAt: new Date().toISOString(),
+            expiresAt: expiresAt.toISOString()
+        };
+        
+        saveUser();
+        renderMyListings();
+        renderProfile();
+        
+        tg.showAlert(`✅ Автоподнятие активировано!\nОбъявление: ${carTitle}\nАктивно до: ${expiresAt.toLocaleDateString('ru-RU')}`);
     });
 }
 
 function manageAutoBoost(carId) {
+    carId = Number(carId);
     const car = cars.find(c => c.id === carId);
     if (!car) return;
     
@@ -2151,8 +2181,11 @@ function manageAutoBoost(carId) {
 }
 
 function disableAutoBoost(carId) {
+    carId = Number(carId);
     if (!currentUser.subscriptions?.autoBoost?.carIds) return;
     
+    // Нормализуем на случай Firebase object
+    currentUser.subscriptions.autoBoost.carIds = normalizeFirebaseArray(currentUser.subscriptions.autoBoost.carIds).map(Number);
     const idx = currentUser.subscriptions.autoBoost.carIds.indexOf(carId);
     if (idx === -1) return;
     
@@ -2304,8 +2337,9 @@ function renderMyListings() {
         const views = getViews(car.id);
         const isFree = canFreeBoost();
         const nextFree = getNextFreeBoostTime();
-        const hasAutoBoost = currentUser.subscriptions?.autoBoost?.active && 
-                            currentUser.subscriptions.autoBoost.carIds.includes(car.id);
+        // Нормализуем carIds — Firebase может вернуть объект вместо массива
+        const autoBoostCarIds = normalizeFirebaseArray(currentUser.subscriptions?.autoBoost?.carIds).map(Number);
+        const hasAutoBoost = currentUser.subscriptions?.autoBoost?.active && autoBoostCarIds.includes(Number(car.id));
         
         let boostButton = '';
         let autoBoostButton = '';
@@ -2337,18 +2371,20 @@ function renderMyListings() {
         
         return `<div class="my-listing-item">
             ${thumbHtml}
-            <div class="my-listing-info" onclick="showDetail(${car.id})">
-                <div class="my-listing-title">${car.brand} ${car.model} ${car.year || ''}</div>
-                <div class="my-listing-price">${fmt(car.price)} ${car.currency}</div>
-                <div class="my-listing-date">${formatDate(car.createdAt)}</div>
-                <div class="my-listing-views">
-                    <span class="views-today" title="За сегодня">👁 Сегодня: <b>${views.today}</b></span>
-                    <span class="views-total" title="Всего просмотров">📊 Всего: <b>${views.total}</b></span>
+            <div class="my-listing-row">
+                <div class="my-listing-info" onclick="showDetail(${car.id})">
+                    <div class="my-listing-title">${car.brand} ${car.model} ${car.year || ''}</div>
+                    <div class="my-listing-price">${fmt(car.price)} ${car.currency}</div>
+                    <div class="my-listing-date">${formatDate(car.createdAt)}</div>
+                    <div class="my-listing-views">
+                        <span class="views-today">👁 <b>${views.today}</b></span>
+                        <span class="views-total">📊 <b>${views.total}</b></span>
+                    </div>
                 </div>
-            </div>
-            <div class="my-listing-actions">
-                <button class="my-listing-btn edit-btn" onclick="editListing(${car.id})">✏️</button>
-                <button class="my-listing-btn delete-btn" onclick="deleteListing(${car.id})">🗑️</button>
+                <div class="my-listing-actions">
+                    <button class="my-listing-btn edit-btn" onclick="editListing(${car.id})">✏️</button>
+                    <button class="my-listing-btn delete-btn" onclick="deleteListing(${car.id})">🗑️</button>
+                </div>
             </div>
             <div class="my-listing-boost-section">
                 ${boostButton}
