@@ -1679,7 +1679,8 @@ function handleSubmit(e) {
         price: parseInt(document.getElementById('price').value),
         currency: document.getElementById('currency').value,
         city: document.getElementById('city').value,
-        registration: document.getElementById('registration').value,
+        // Регистрация только для транспорта, не для запчастей
+        ...(category !== 'parts' ? { registration: document.getElementById('registration').value } : {}),
         description: document.getElementById('description').value,
         photos: [...uploadedPhotos],
         video: uploadedVideo,
@@ -2547,12 +2548,14 @@ function updateFormBrandOptions() {
     if (partTypeGr) partTypeGr.style.display = isParts ? 'flex' : 'none';
     if (conditionGr) conditionGr.style.display = isParts ? 'flex' : 'none';
     
-    // Для parts скрываем год, пробег, двигатель, КПП, топливо, привод
-    const vehicleFields = ['year', 'mileage', 'engine', 'transmission', 'fuel', 'drive'];
+    // Для parts скрываем год, пробег, двигатель, КПП, топливо, привод, регистрацию
+    const vehicleFields = ['year', 'mileage', 'engine', 'transmission', 'fuel', 'drive', 'registration'];
     vehicleFields.forEach(id => {
         const el = document.getElementById(id);
         if (el && el.closest('.form-group')) {
             el.closest('.form-group').style.display = isParts ? 'none' : 'flex';
+            // Убираем required у скрытых полей чтобы не блокировать отправку
+            el.required = !isParts;
         }
     });
     
