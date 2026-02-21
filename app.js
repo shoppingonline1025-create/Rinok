@@ -408,6 +408,7 @@ let newCurrentPage = 1;
 let allCurrentPage = 1;
 
 function fmt(n) {
+    if (n === null || n === undefined || isNaN(n)) return '0';
     return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 }
 
@@ -420,7 +421,9 @@ function isNew(date) {
 }
 
 function formatDate(date) {
+    if (!date) return '—';
     const d = typeof date === 'string' ? new Date(date) : date;
+    if (isNaN(d.getTime())) return '—';
     const months = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
     const day = d.getDate();
     const month = months[d.getMonth()];
