@@ -1,5 +1,6 @@
 // ============================================
-// ДАННЫЕ - v6.2 - 2026-02-11 00:00
+// ДАННЫЕ - v7.4 - 2026-02-21
+// Расширенные модели + виды топлива
 // ============================================
 
 // РАСШИРЕННЫЙ справочник марок и моделей
@@ -9,9 +10,70 @@ const BRANDS_DATA = {
     'Acura': ['ILX', 'MDX', 'NSX', 'RDX', 'RLX', 'TLX', 'ZDX', 'Integra', 'Legend', 'RL', 'RSX', 'TSX'],
     'Alfa Romeo': ['4C', '147', '156', '159', '166', 'Brera', 'Giulia', 'Giulietta', 'GT', 'GTV', 'MiTo', 'Spider', 'Stelvio', 'Tonale'],
     'Aston Martin': ['DB11', 'DB9', 'DBS', 'DBX', 'Rapide', 'V8 Vantage', 'V12 Vantage', 'Vanquish', 'Vantage'],
-    'Audi': ['100', '80', 'A1', 'A2', 'A3', 'A4', 'A4 Allroad', 'A5', 'A6', 'A6 Allroad', 'A7', 'A8', 'e-tron', 'e-tron GT', 'Q2', 'Q3', 'Q4 e-tron', 'Q5', 'Q7', 'Q8', 'R8', 'RS3', 'RS4', 'RS5', 'RS6', 'RS7', 'RS Q3', 'RS Q8', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'SQ5', 'SQ7', 'SQ8', 'TT', 'TTS'],
+    
+    // ═══ AUDI - Расширенные модели ═══
+    'Audi': [
+      // A серия
+      'A1 1.0', 'A1 1.2', 'A1 1.4', 'A1 1.6', 'A1 2.0',
+      'A3 1.2', 'A3 1.4', 'A3 1.6', 'A3 1.8', 'A3 2.0', 'A3 2.0 TDI', 'A3 Sportback',
+      'A4 1.6', 'A4 1.8', 'A4 1.8T', 'A4 2.0', 'A4 2.0 TDI', 'A4 2.4', 'A4 2.5 TDI', 'A4 2.8', 'A4 3.0', 'A4 3.0 TDI', 'A4 3.2', 'A4 Allroad',
+      'A5 1.8', 'A5 2.0', 'A5 2.0 TDI', 'A5 2.7 TDI', 'A5 3.0', 'A5 3.0 TDI', 'A5 3.2', 'A5 Sportback',
+      'A6 1.8', 'A6 2.0', 'A6 2.0 TDI', 'A6 2.4', 'A6 2.5 TDI', 'A6 2.7', 'A6 2.7 TDI', 'A6 2.8', 'A6 3.0', 'A6 3.0 TDI', 'A6 3.2', 'A6 4.2', 'A6 Allroad',
+      'A7 2.8', 'A7 3.0', 'A7 3.0 TDI', 'A7 Sportback',
+      'A8 2.5 TDI', 'A8 2.8', 'A8 3.0', 'A8 3.0 TDI', 'A8 3.7', 'A8 4.0', 'A8 4.2', 'A8 4.2 TDI', 'A8 6.0', 'A8 Long',
+      // Q серия
+      'Q2 1.0', 'Q2 1.4', 'Q2 2.0',
+      'Q3 1.4', 'Q3 2.0', 'Q3 2.0 TDI',
+      'Q5 2.0', 'Q5 2.0 TDI', 'Q5 3.0', 'Q5 3.0 TDI', 'Q5 3.2',
+      'Q7 3.0', 'Q7 3.0 TDI', 'Q7 3.6', 'Q7 4.2', 'Q7 4.2 TDI', 'Q7 6.0 TDI',
+      'Q8 3.0', 'Q8 3.0 TDI', 'Q8 4.0',
+      // S/RS серия
+      'S3', 'S4', 'S5', 'S6', 'S7', 'S8',
+      'RS3', 'RS4', 'RS5', 'RS6', 'RS7', 'RS Q3', 'RS Q8',
+      // Другие
+      'TT 1.8', 'TT 2.0', 'TT 3.2', 'TTS', 'TT RS',
+      'R8 4.2', 'R8 5.2',
+      'e-tron', 'e-tron GT', 'Q4 e-tron',
+      '80', '100', '200'
+    ],
+    
     'Bentley': ['Arnage', 'Azure', 'Bentayga', 'Continental', 'Continental GT', 'Flying Spur', 'Mulsanne'],
-    'BMW': ['1 Series', '2 Series', '3 Series', '4 Series', '5 Series', '6 Series', '7 Series', '8 Series', 'i3', 'i4', 'i7', 'i8', 'iX', 'iX3', 'M2', 'M3', 'M4', 'M5', 'M6', 'M8', 'X1', 'X2', 'X3', 'X4', 'X5', 'X6', 'X7', 'Z3', 'Z4', 'Z8'],
+    
+    // ═══ BMW - Расширенные модели ═══
+    'BMW': [
+      // 1 серия
+      '114i', '116i', '116d', '118i', '118d', '120i', '120d', '123d', '125i', '125d', '128i', '130i', '135i', 'M135i',
+      // 2 серия
+      '214d', '216i', '216d', '218i', '218d', '220i', '220d', '225i', '225xe', '228i', '230i', 'M235i', 'M240i',
+      // 3 серия
+      '315', '316', '316i', '316d', '318', '318i', '318d', '318is', '320', '320i', '320d', '320si', '323', '323i', '324d', '325', '325i', '325d', '325xi', '328', '328i', '328d', '330', '330i', '330d', '330xi', '330e', '335', '335i', '335d', '340i', 'M340i',
+      // 4 серия
+      '418i', '418d', '420i', '420d', '425d', '428i', '430i', '430d', '435i', '440i', 'M440i',
+      // 5 серия
+      '518', '518i', '518d', '520', '520i', '520d', '523', '523i', '524', '524d', '525', '525i', '525d', '525xi', '528', '528i', '530', '530i', '530d', '530e', '535', '535i', '535d', '540', '540i', '540d', '545i', '550i', 'M550i',
+      // 6 серия
+      '630i', '630d', '635d', '640i', '640d', '645i', '650i', 'M6',
+      // 7 серия
+      '725d', '728i', '730', '730i', '730d', '735i', '735Li', '740i', '740d', '740Li', '745i', '750i', '750d', '750Li', '760i', '760Li', 'M760Li',
+      // 8 серия
+      '840i', '840d', '850i', '850ci', 'M850i',
+      // X серия
+      'X1 16d', 'X1 18i', 'X1 18d', 'X1 20i', 'X1 20d', 'X1 23d', 'X1 25i', 'X1 25d', 'X1 28i',
+      'X2 16d', 'X2 18i', 'X2 18d', 'X2 20i', 'X2 20d', 'X2 25d',
+      'X3 2.0i', 'X3 2.0d', 'X3 2.5i', 'X3 2.5si', 'X3 3.0i', 'X3 3.0d', 'X3 3.0si', 'X3 3.0sd', 'X3 20i', 'X3 20d', 'X3 28i', 'X3 30i', 'X3 30d', 'X3 35i', 'X3 35d', 'X3 M40i', 'X3 M40d',
+      'X4 20i', 'X4 20d', 'X4 28i', 'X4 30i', 'X4 30d', 'X4 35i', 'X4 M40i', 'X4 M40d',
+      'X5 3.0i', 'X5 3.0d', 'X5 3.0si', 'X5 3.0sd', 'X5 4.4i', 'X5 4.6is', 'X5 4.8i', 'X5 4.8is', 'X5 25d', 'X5 30d', 'X5 35i', 'X5 35d', 'X5 40i', 'X5 40d', 'X5 45e', 'X5 48i', 'X5 50i', 'X5 M50i', 'X5 M50d',
+      'X6 30d', 'X6 35i', 'X6 35d', 'X6 40i', 'X6 40d', 'X6 50i', 'X6 M50i', 'X6 M50d',
+      'X7 30d', 'X7 40i', 'X7 40d', 'X7 50i', 'X7 M50i', 'X7 M50d',
+      // Z серия
+      'Z3 1.8', 'Z3 1.9', 'Z3 2.0', 'Z3 2.2', 'Z3 2.8', 'Z3 3.0', 'Z3 M',
+      'Z4 2.0i', 'Z4 2.2i', 'Z4 2.5i', 'Z4 2.5si', 'Z4 3.0i', 'Z4 3.0si', 'Z4 20i', 'Z4 30i', 'Z4 35i', 'Z4 35is', 'Z4 M40i',
+      // M серия
+      'M2', 'M3', 'M4', 'M5', 'M6', 'M8', 'X3 M', 'X4 M', 'X5 M', 'X6 M',
+      // i серия (электро)
+      'i3', 'i4', 'i7', 'i8', 'iX', 'iX1', 'iX3'
+    ],
+    
     'Bugatti': ['Chiron', 'Veyron'],
     'Buick': ['Enclave', 'Encore', 'Envision', 'LaCrosse', 'Park Avenue', 'Regal', 'Verano'],
     'BYD': ['Atto 3', 'Dolphin', 'Han', 'Qin', 'Seal', 'Song', 'Tang', 'Yuan Plus'],
@@ -26,54 +88,430 @@ const BRANDS_DATA = {
     'Dodge': ['Avenger', 'Caliber', 'Challenger', 'Charger', 'Dakota', 'Dart', 'Durango', 'Journey', 'Magnum', 'Nitro', 'RAM 1500', 'RAM 2500', 'Viper'],
     'Ferrari': ['296 GTB', '458', '488', '812', 'California', 'Enzo', 'F12', 'F430', 'F8', 'FF', 'GTC4Lusso', 'LaFerrari', 'Portofino', 'Roma', 'SF90'],
     'Fiat': ['124 Spider', '500', '500C', '500L', '500X', 'Albea', 'Bravo', 'Doblo', 'Ducato', 'Fiorino', 'Grande Punto', 'Linea', 'Panda', 'Punto', 'Qubo', 'Scudo', 'Sedici', 'Stilo', 'Tipo', 'Ulysse'],
-    'Ford': ['B-MAX', 'Bronco', 'C-MAX', 'EcoSport', 'Edge', 'Escape', 'Excursion', 'Expedition', 'Explorer', 'F-150', 'F-250', 'F-350', 'Fiesta', 'Flex', 'Focus', 'Fusion', 'Galaxy', 'Ka', 'Kuga', 'Mondeo', 'Mustang', 'Puma', 'Ranger', 'S-MAX', 'Taurus', 'Tourneo', 'Transit'],
+    
+    // ═══ FORD - Расширенные модели ═══
+    'Ford': [
+      'B-MAX', 'Bronco', 'C-MAX 1.6', 'C-MAX 1.8', 'C-MAX 2.0',
+      'EcoSport 1.0', 'EcoSport 1.5', 'EcoSport 2.0',
+      'Edge 2.0', 'Edge 2.7', 'Edge 3.5',
+      'Escape', 'Excursion', 'Expedition', 'Explorer 2.3', 'Explorer 3.0', 'Explorer 3.5',
+      'F-150', 'F-250', 'F-350',
+      'Fiesta 1.0', 'Fiesta 1.1', 'Fiesta 1.25', 'Fiesta 1.3', 'Fiesta 1.4', 'Fiesta 1.5', 'Fiesta 1.6', 'Fiesta ST',
+      'Flex',
+      'Focus 1.0', 'Focus 1.4', 'Focus 1.5', 'Focus 1.6', 'Focus 1.8', 'Focus 2.0', 'Focus 2.3', 'Focus ST', 'Focus RS',
+      'Fusion 1.4', 'Fusion 1.6', 'Fusion 2.0', 'Fusion 2.5', 'Fusion Hybrid',
+      'Galaxy 1.6', 'Galaxy 1.8', 'Galaxy 2.0', 'Galaxy 2.3',
+      'Ka', 'Ka+',
+      'Kuga 1.5', 'Kuga 1.6', 'Kuga 2.0', 'Kuga 2.5',
+      'Mondeo 1.6', 'Mondeo 1.8', 'Mondeo 2.0', 'Mondeo 2.2', 'Mondeo 2.3', 'Mondeo 2.5', 'Mondeo ST220',
+      'Mustang 2.3', 'Mustang 3.7', 'Mustang 4.0', 'Mustang 4.6', 'Mustang 5.0', 'Mustang GT', 'Mustang Shelby',
+      'Puma 1.0', 'Puma 1.5',
+      'Ranger 2.0', 'Ranger 2.2', 'Ranger 2.5', 'Ranger 3.2',
+      'S-MAX 1.6', 'S-MAX 1.8', 'S-MAX 2.0', 'S-MAX 2.2', 'S-MAX 2.3',
+      'Taurus', 'Tourneo', 'Transit', 'Transit Connect', 'Transit Custom'
+    ],
+    
     'Geely': ['Atlas', 'Coolray', 'Emgrand', 'Emgrand X7', 'GC6', 'Geometry C', 'MK', 'Monjaro', 'Otaka', 'Tugella'],
     'Genesis': ['G70', 'G80', 'G90', 'GV60', 'GV70', 'GV80'],
     'GMC': ['Acadia', 'Canyon', 'Envoy', 'Jimmy', 'Safari', 'Savana', 'Sierra', 'Terrain', 'Yukon', 'Yukon XL'],
     'Great Wall': ['Deer', 'Haval H2', 'Haval H3', 'Haval H5', 'Haval H6', 'Haval H9', 'Hover', 'Pegasus', 'Peri', 'Poer', 'Safe', 'Sailor', 'Sing', 'Socool', 'Voleex C10', 'Voleex C30', 'Wingle'],
     'Haval': ['Dargo', 'F7', 'F7x', 'H2', 'H6', 'H9', 'Jolion', 'M6'],
-    'Honda': ['Accord', 'Civic', 'City', 'CR-V', 'CR-Z', 'Crosstour', 'e', 'Element', 'Fit', 'FR-V', 'HR-V', 'Insight', 'Jazz', 'Legend', 'Odyssey', 'Passport', 'Pilot', 'Prelude', 'Ridgeline', 'S2000', 'Shuttle', 'Stream'],
+    
+    // ═══ HONDA - Расширенные модели ═══
+    'Honda': [
+      'Accord 1.8', 'Accord 2.0', 'Accord 2.2', 'Accord 2.4', 'Accord 3.0', 'Accord 3.5', 'Accord Hybrid', 'Accord Type-R',
+      'Civic 1.3', 'Civic 1.4', 'Civic 1.5', 'Civic 1.6', 'Civic 1.8', 'Civic 2.0', 'Civic 2.2', 'Civic Type-R', 'Civic Hybrid',
+      'City', 
+      'CR-V 1.5', 'CR-V 1.6', 'CR-V 2.0', 'CR-V 2.2', 'CR-V 2.4', 'CR-V Hybrid',
+      'CR-Z', 'Crosstour', 'e', 'Element',
+      'Fit', 'FR-V', 'HR-V 1.5', 'HR-V 1.6', 'HR-V 1.8',
+      'Insight', 'Jazz 1.2', 'Jazz 1.3', 'Jazz 1.4', 'Jazz 1.5', 'Jazz Hybrid',
+      'Legend', 'Odyssey', 'Passport', 'Pilot',
+      'Prelude 2.0', 'Prelude 2.2', 'Prelude 2.3',
+      'Ridgeline', 'S2000', 'Shuttle', 'Stream'
+    ],
+    
     'Hummer': ['H1', 'H2', 'H3', 'EV'],
-    'Hyundai': ['Accent', 'Atos', 'Avante', 'Azera', 'Bayon', 'Creta', 'Elantra', 'Equus', 'Getz', 'Grand Santa Fe', 'Grand Starex', 'Genesis', 'H-1', 'i10', 'i20', 'i30', 'i40', 'Ioniq', 'Ioniq 5', 'Ioniq 6', 'ix20', 'ix35', 'ix55', 'Kona', 'Matrix', 'Palisade', 'Santa Fe', 'Solaris', 'Sonata', 'Staria', 'Starex', 'Terracan', 'Trajet', 'Tucson', 'Veloster', 'Venue', 'Veracruz', 'Verna'],
+    
+    // ═══ HYUNDAI - Расширенные модели ═══
+    'Hyundai': [
+      'Accent 1.3', 'Accent 1.4', 'Accent 1.5', 'Accent 1.6',
+      'Atos', 'Avante', 'Azera', 'Bayon',
+      'Creta 1.6', 'Creta 2.0',
+      'Elantra 1.6', 'Elantra 1.8', 'Elantra 2.0',
+      'Equus', 'Genesis', 'Genesis Coupe',
+      'Getz 1.1', 'Getz 1.3', 'Getz 1.4', 'Getz 1.5', 'Getz 1.6',
+      'Grand Santa Fe', 'Grand Starex', 'H-1',
+      'i10 1.0', 'i10 1.1', 'i10 1.2',
+      'i20 1.1', 'i20 1.2', 'i20 1.4', 'i20 1.6',
+      'i30 1.4', 'i30 1.6', 'i30 2.0', 'i30 N',
+      'i40 1.6', 'i40 1.7', 'i40 2.0',
+      'Ioniq', 'Ioniq 5', 'Ioniq 6',
+      'ix20', 'ix35 1.6', 'ix35 2.0', 'ix55',
+      'Kona 1.0', 'Kona 1.6', 'Kona 2.0', 'Kona Electric', 'Kona N',
+      'Matrix', 'Palisade',
+      'Santa Fe 2.0', 'Santa Fe 2.2', 'Santa Fe 2.4', 'Santa Fe 2.7', 'Santa Fe 3.3',
+      'Solaris 1.4', 'Solaris 1.6',
+      'Sonata 2.0', 'Sonata 2.4', 'Sonata 2.7', 'Sonata 3.3', 'Sonata Hybrid',
+      'Staria', 'Starex', 'Terracan', 'Trajet',
+      'Tucson 1.6', 'Tucson 1.7', 'Tucson 2.0', 'Tucson 2.4', 'Tucson 2.7', 'Tucson Hybrid',
+      'Veloster', 'Veloster N', 'Venue', 'Veracruz', 'Verna'
+    ],
+    
     'Infiniti': ['EX', 'FX', 'G', 'M', 'Q30', 'Q50', 'Q60', 'Q70', 'QX30', 'QX50', 'QX55', 'QX56', 'QX60', 'QX70', 'QX80'],
     'Isuzu': ['D-Max', 'MU-X', 'Trooper', 'VehiCross'],
     'Jaguar': ['E-Pace', 'F-Pace', 'F-Type', 'I-Pace', 'S-Type', 'X-Type', 'XE', 'XF', 'XJ', 'XK'],
     'Jeep': ['Cherokee', 'Commander', 'Compass', 'Gladiator', 'Grand Cherokee', 'Liberty', 'Patriot', 'Renegade', 'Wrangler'],
-    'Kia': ['Carens', 'Carnival', 'Ceed', 'Cerato', 'Clarus', 'EV6', 'K5', 'K7', 'K8', 'K9', 'Magentis', 'Mohave', 'Niro', 'Opirus', 'Optima', 'Picanto', 'Pride', 'Quoris', 'Rio', 'Sedona', 'Seltos', 'Sephia', 'Shuma', 'Sorento', 'Soul', 'Spectra', 'Sportage', 'Stinger', 'Stonic', 'Venga'],
+    
+    // ═══ KIA - Расширенные модели ═══
+    'Kia': [
+      'Carens 1.6', 'Carens 1.7', 'Carens 2.0',
+      'Carnival', 
+      'Ceed 1.0', 'Ceed 1.4', 'Ceed 1.6', 'Ceed 2.0', 'Ceed GT',
+      'Cerato 1.6', 'Cerato 2.0',
+      'Clarus', 'EV6',
+      'K5 2.0', 'K5 2.5', 'K7', 'K8', 'K9',
+      'Magentis', 'Mohave', 'Niro', 'Niro EV', 'Niro Hybrid',
+      'Opirus', 'Optima 2.0', 'Optima 2.4',
+      'Picanto 1.0', 'Picanto 1.1', 'Picanto 1.2',
+      'Pride', 'Quoris',
+      'Rio 1.1', 'Rio 1.2', 'Rio 1.25', 'Rio 1.3', 'Rio 1.4', 'Rio 1.5', 'Rio 1.6',
+      'Sedona', 'Seltos 1.6', 'Seltos 2.0', 'Sephia', 'Shuma',
+      'Sorento 2.2', 'Sorento 2.4', 'Sorento 2.5', 'Sorento 3.3', 'Sorento 3.5',
+      'Soul 1.6', 'Soul 2.0', 'Soul EV',
+      'Spectra', 
+      'Sportage 1.6', 'Sportage 1.7', 'Sportage 2.0', 'Sportage 2.4', 'Sportage 2.7',
+      'Stinger 2.0', 'Stinger 2.2', 'Stinger 3.3',
+      'Stonic 1.0', 'Stonic 1.4', 'Stonic 1.6',
+      'Venga'
+    ],
+    
     'Lada': ['110', '111', '112', '2101', '2103', '2104', '2105', '2106', '2107', '2108', '2109', '21099', '2110', '2111', '2112', '2113', '2114', '2115', '4x4', 'Granta', 'Kalina', 'Largus', 'Niva', 'Priora', 'Samara', 'Vesta', 'XRAY'],
     'Lamborghini': ['Aventador', 'Countach', 'Diablo', 'Gallardo', 'Huracan', 'Murcielago', 'Revuelto', 'Urus'],
     'Lancia': ['Delta', 'Lybra', 'Musa', 'Phedra', 'Thema', 'Thesis', 'Voyager', 'Ypsilon', 'Zeta'],
     'Land Rover': ['Defender', 'Discovery', 'Discovery Sport', 'Freelander', 'Range Rover', 'Range Rover Evoque', 'Range Rover Sport', 'Range Rover Velar'],
-    'Lexus': ['CT', 'ES', 'GS', 'GX', 'HS', 'IS', 'LC', 'LFA', 'LS', 'LX', 'NX', 'RC', 'RX', 'SC', 'UX'],
+    
+    // ═══ LEXUS - Расширенные модели ═══
+    'Lexus': [
+      'CT 200h',
+      'ES 250', 'ES 300', 'ES 300h', 'ES 330', 'ES 350',
+      'GS 250', 'GS 300', 'GS 350', 'GS 430', 'GS 450h', 'GS 460', 'GS F',
+      'GX 460', 'GX 470',
+      'HS 250h',
+      'IS 200', 'IS 220d', 'IS 250', 'IS 300', 'IS 300h', 'IS 350', 'IS F',
+      'LC 500', 'LC 500h',
+      'LFA',
+      'LS 400', 'LS 430', 'LS 460', 'LS 500', 'LS 500h', 'LS 600h',
+      'LX 450', 'LX 470', 'LX 570', 'LX 600',
+      'NX 200t', 'NX 250', 'NX 300', 'NX 300h', 'NX 350', 'NX 350h', 'NX 450h+',
+      'RC 200t', 'RC 300', 'RC 350', 'RC F',
+      'RX 200t', 'RX 270', 'RX 300', 'RX 330', 'RX 350', 'RX 400h', 'RX 450h', 'RX 500h',
+      'SC 300', 'SC 400', 'SC 430',
+      'UX 200', 'UX 250h', 'UX 300e'
+    ],
+    
     'Lincoln': ['Aviator', 'Continental', 'Corsair', 'MKC', 'MKS', 'MKT', 'MKX', 'MKZ', 'Navigator', 'Nautilus', 'Town Car'],
     'Lotus': ['Elise', 'Emira', 'Evora', 'Exige'],
     'Maserati': ['Ghibli', 'GranCabrio', 'GranTurismo', 'Grecale', 'Levante', 'MC20', 'Quattroporte'],
     'Maybach': ['57', '62', 'GLS', 'S-Class'],
-    'Mazda': ['2', '3', '3 MPS', '5', '6', '6 MPS', '323', '626', 'Atenza', 'Axela', 'BT-50', 'CX-3', 'CX-30', 'CX-5', 'CX-50', 'CX-60', 'CX-7', 'CX-9', 'CX-90', 'Demio', 'Familia', 'MPV', 'MX-5', 'MX-30', 'Premacy', 'RX-7', 'RX-8', 'Tribute', 'Xedos'],
+    
+    // ═══ MAZDA - Расширенные модели ═══
+    'Mazda': [
+      '2 1.3', '2 1.5',
+      '3 1.4', '3 1.5', '3 1.6', '3 2.0', '3 2.3', '3 MPS',
+      '5 1.8', '5 2.0',
+      '6 1.8', '6 2.0', '6 2.2', '6 2.3', '6 2.5', '6 MPS',
+      '323', '323F', '626',
+      'Atenza', 'Axela',
+      'BT-50',
+      'CX-3 1.5', 'CX-3 2.0',
+      'CX-30 1.8', 'CX-30 2.0', 'CX-30 e-Skyactiv',
+      'CX-5 2.0', 'CX-5 2.2', 'CX-5 2.5',
+      'CX-50',
+      'CX-60 2.5', 'CX-60 3.3',
+      'CX-7 2.3', 'CX-7 2.5',
+      'CX-9 2.5', 'CX-9 3.7',
+      'CX-90',
+      'Demio', 'Familia', 'MPV',
+      'MX-5 1.5', 'MX-5 1.6', 'MX-5 1.8', 'MX-5 2.0',
+      'MX-30',
+      'Premacy', 
+      'RX-7', 'RX-8',
+      'Tribute', 'Xedos'
+    ],
+    
     'McLaren': ['540C', '570GT', '570S', '600LT', '650S', '675LT', '720S', 'Artura', 'GT', 'P1'],
-    'Mercedes': ['A-Class', 'AMG GT', 'B-Class', 'C-Class', 'CL-Class', 'CLA', 'CLC', 'CLK', 'CLS', 'E-Class', 'EQA', 'EQB', 'EQC', 'EQE', 'EQS', 'G-Class', 'GL-Class', 'GLA', 'GLB', 'GLC', 'GLE', 'GLK', 'GLS', 'ML-Class', 'R-Class', 'S-Class', 'SL-Class', 'SLC', 'SLK', 'SLR', 'SLS', 'Sprinter', 'V-Class', 'Vaneo', 'Viano', 'Vito'],
+    
+    // ═══ MERCEDES - Расширенные модели ═══
+    'Mercedes': [
+      // A-класс
+      'A 140', 'A 150', 'A 160', 'A 170', 'A 180', 'A 180d', 'A 200', 'A 200d', 'A 220', 'A 220d', 'A 250', 'A 250e', 'A 35 AMG', 'A 45 AMG',
+      // B-класс
+      'B 150', 'B 160', 'B 170', 'B 180', 'B 180d', 'B 200', 'B 200d', 'B 220', 'B 250', 'B 250e',
+      // C-класс
+      'C 160', 'C 180', 'C 180d', 'C 200', 'C 200d', 'C 220', 'C 220d', 'C 230', 'C 240', 'C 250', 'C 250d', 'C 270', 'C 280', 'C 300', 'C 300d', 'C 320', 'C 350', 'C 350e', 'C 400', 'C 43 AMG', 'C 63 AMG',
+      // CL-класс
+      'CL 500', 'CL 550', 'CL 600', 'CL 63 AMG', 'CL 65 AMG',
+      // CLA
+      'CLA 180', 'CLA 200', 'CLA 220', 'CLA 250', 'CLA 35 AMG', 'CLA 45 AMG',
+      // CLC
+      'CLC 160', 'CLC 180', 'CLC 200', 'CLC 220', 'CLC 230', 'CLC 350',
+      // CLK
+      'CLK 200', 'CLK 220', 'CLK 230', 'CLK 240', 'CLK 270', 'CLK 280', 'CLK 320', 'CLK 350', 'CLK 430', 'CLK 500', 'CLK 55 AMG', 'CLK 63 AMG',
+      // CLS
+      'CLS 220', 'CLS 250', 'CLS 280', 'CLS 300', 'CLS 320', 'CLS 350', 'CLS 400', 'CLS 450', 'CLS 500', 'CLS 53 AMG', 'CLS 55 AMG', 'CLS 63 AMG',
+      // E-класс
+      'E 200', 'E 200d', 'E 220', 'E 220d', 'E 230', 'E 240', 'E 250', 'E 250d', 'E 260', 'E 270', 'E 280', 'E 290', 'E 300', 'E 300d', 'E 320', 'E 350', 'E 350d', 'E 350e', 'E 400', 'E 420', 'E 430', 'E 450', 'E 500', 'E 43 AMG', 'E 53 AMG', 'E 55 AMG', 'E 63 AMG',
+      // EQ (электро)
+      'EQA 250', 'EQA 300', 'EQA 350', 'EQB 250', 'EQB 300', 'EQB 350', 'EQC 400', 'EQE 300', 'EQE 350', 'EQE 43 AMG', 'EQE 53 AMG', 'EQS 450', 'EQS 53 AMG', 'EQS 580',
+      // G-класс
+      'G 230', 'G 270', 'G 280', 'G 290', 'G 300', 'G 320', 'G 350', 'G 350d', 'G 400d', 'G 500', 'G 55 AMG', 'G 63 AMG', 'G 65 AMG',
+      // GL/GLS
+      'GL 320', 'GL 350', 'GL 400', 'GL 420', 'GL 450', 'GL 500', 'GL 550', 'GL 63 AMG', 'GLS 350d', 'GLS 400d', 'GLS 450', 'GLS 500', 'GLS 580', 'GLS 600', 'GLS 63 AMG',
+      // GLA
+      'GLA 180', 'GLA 200', 'GLA 220', 'GLA 250', 'GLA 35 AMG', 'GLA 45 AMG',
+      // GLB
+      'GLB 180', 'GLB 200', 'GLB 220', 'GLB 250', 'GLB 35 AMG',
+      // GLC
+      'GLC 180', 'GLC 200', 'GLC 220d', 'GLC 250', 'GLC 250d', 'GLC 300', 'GLC 300d', 'GLC 300e', 'GLC 350', 'GLC 350e', 'GLC 400d', 'GLC 43 AMG', 'GLC 63 AMG',
+      // GLE
+      'GLE 250d', 'GLE 300d', 'GLE 350', 'GLE 350d', 'GLE 350e', 'GLE 400d', 'GLE 450', 'GLE 500', 'GLE 500e', 'GLE 53 AMG', 'GLE 63 AMG',
+      // GLK
+      'GLK 200', 'GLK 220', 'GLK 250', 'GLK 280', 'GLK 300', 'GLK 320', 'GLK 350',
+      // ML
+      'ML 230', 'ML 250', 'ML 270', 'ML 280', 'ML 300', 'ML 320', 'ML 350', 'ML 400', 'ML 420', 'ML 430', 'ML 450', 'ML 500', 'ML 55 AMG', 'ML 63 AMG',
+      // R-класс
+      'R 280', 'R 300', 'R 320', 'R 350', 'R 500', 'R 63 AMG',
+      // S-класс
+      'S 250', 'S 280', 'S 300', 'S 320', 'S 350', 'S 350d', 'S 400', 'S 400d', 'S 420', 'S 430', 'S 450', 'S 500', 'S 500e', 'S 560', 'S 580', 'S 600', 'S 63 AMG', 'S 65 AMG', 'S 680',
+      // SL
+      'SL 280', 'SL 300', 'SL 320', 'SL 350', 'SL 400', 'SL 450', 'SL 500', 'SL 55 AMG', 'SL 600', 'SL 63 AMG', 'SL 65 AMG',
+      // SLC/SLK
+      'SLC 180', 'SLC 200', 'SLC 300', 'SLC 43 AMG', 'SLK 200', 'SLK 230', 'SLK 250', 'SLK 280', 'SLK 300', 'SLK 320', 'SLK 350', 'SLK 55 AMG',
+      // AMG GT
+      'AMG GT', 'AMG GT 43', 'AMG GT 53', 'AMG GT 63', 'AMG GT C', 'AMG GT R', 'AMG GT S',
+      // Другие
+      'SLR McLaren', 'SLS AMG',
+      'Sprinter', 'V 220', 'V 250', 'V 300', 'Vaneo', 'Viano', 'Vito'
+    ],
+    
     'MG': ['3', '5', '6', 'HS', 'Marvel R', 'MG3', 'MG5', 'MG6', 'ZR', 'ZS', 'ZT'],
-    'Mini': ['Clubman', 'Countryman', 'Cooper', 'Cooper S', 'John Cooper Works', 'One', 'Paceman'],
-    'Mitsubishi': ['ASX', 'Carisma', 'Colt', 'Eclipse', 'Eclipse Cross', 'Galant', 'Grandis', 'i-MiEV', 'L200', 'Lancer', 'Lancer Evolution', 'Montero', 'Outlander', 'Pajero', 'Pajero Pinin', 'Pajero Sport', 'Space Star'],
-    'Nissan': ['350Z', '370Z', 'Almera', 'Altima', 'Ariya', 'Armada', 'Cube', 'GT-R', 'Juke', 'Kicks', 'Leaf', 'Maxima', 'Micra', 'Murano', 'Navara', 'Note', 'NP300', 'NV200', 'Pathfinder', 'Patrol', 'Pixo', 'Primastar', 'Primera', 'Pulsar', 'Qashqai', 'Qashqai+2', 'Quest', 'Rogue', 'Sentra', 'Sunny', 'Teana', 'Terrano', 'Tiida', 'Titan', 'Versa', 'X-Trail', 'Xterra'],
-    'Opel': ['Adam', 'Agila', 'Ampera', 'Antara', 'Astra', 'Combo', 'Corsa', 'Crossland', 'Frontera', 'Grandland', 'Insignia', 'Karl', 'Meriva', 'Mokka', 'Omega', 'Signum', 'Tigra', 'Vectra', 'Vivaro', 'Zafira'],
-    'Peugeot': ['107', '108', '206', '207', '208', '2008', '3008', '301', '307', '308', '4007', '4008', '406', '407', '408', '5008', '508', '607', '807', 'Boxer', 'Expert', 'Partner', 'RCZ', 'Rifter', 'Traveller'],
-    'Porsche': ['718', '911', '918', '924', '928', '944', '968', 'Boxster', 'Carrera GT', 'Cayenne', 'Cayman', 'Macan', 'Panamera', 'Taycan'],
+    'Mini': ['Clubman', 'Countryman', 'Cooper', 'Cooper D', 'Cooper S', 'Cooper SD', 'John Cooper Works', 'One', 'One D', 'Paceman'],
+    
+    // ═══ MITSUBISHI - Расширенные модели ═══
+    'Mitsubishi': [
+      'ASX 1.6', 'ASX 1.8', 'ASX 2.0', 'ASX 2.2', 'ASX 2.4',
+      'Carisma', 'Colt', 
+      'Eclipse', 'Eclipse Cross 1.5', 'Eclipse Cross 2.2', 'Eclipse Cross 2.4',
+      'Galant', 'Grandis', 'i-MiEV',
+      'L200 2.4', 'L200 2.5', 'L200 3.2',
+      'Lancer 1.3', 'Lancer 1.5', 'Lancer 1.6', 'Lancer 1.8', 'Lancer 2.0', 'Lancer Evolution', 'Lancer Ralliart',
+      'Montero',
+      'Outlander 2.0', 'Outlander 2.2', 'Outlander 2.4', 'Outlander 3.0', 'Outlander PHEV',
+      'Pajero 2.5', 'Pajero 2.8', 'Pajero 3.0', 'Pajero 3.2', 'Pajero 3.5', 'Pajero 3.8',
+      'Pajero Pinin', 'Pajero Sport 2.4', 'Pajero Sport 2.5', 'Pajero Sport 3.0',
+      'Space Star'
+    ],
+    
+    // ═══ NISSAN - Расширенные модели ═══
+    'Nissan': [
+      '350Z', '370Z',
+      'Almera 1.4', 'Almera 1.5', 'Almera 1.6', 'Almera 1.8', 'Almera 2.0',
+      'Altima', 'Ariya', 'Armada', 'Cube',
+      'GT-R',
+      'Juke 1.2', 'Juke 1.5', 'Juke 1.6',
+      'Kicks', 'Leaf',
+      'Maxima', 'Micra 1.0', 'Micra 1.2', 'Micra 1.4', 'Micra 1.5',
+      'Murano 2.5', 'Murano 3.5',
+      'Navara', 'Note 1.2', 'Note 1.4', 'Note 1.5', 'Note 1.6', 'NP300', 'NV200',
+      'Pathfinder 2.5', 'Pathfinder 3.0', 'Pathfinder 3.5', 'Pathfinder 4.0',
+      'Patrol 2.8', 'Patrol 3.0', 'Patrol 4.2', 'Patrol 4.8', 'Patrol 5.6',
+      'Pixo', 'Primastar',
+      'Primera 1.6', 'Primera 1.8', 'Primera 2.0', 'Primera 2.2',
+      'Pulsar',
+      'Qashqai 1.2', 'Qashqai 1.3', 'Qashqai 1.5', 'Qashqai 1.6', 'Qashqai 2.0', 'Qashqai+2',
+      'Quest', 'Rogue', 'Sentra', 'Sunny',
+      'Teana 2.0', 'Teana 2.5', 'Teana 3.5',
+      'Terrano', 
+      'Tiida 1.5', 'Tiida 1.6', 'Tiida 1.8',
+      'Titan', 'Versa',
+      'X-Trail 1.6', 'X-Trail 2.0', 'X-Trail 2.2', 'X-Trail 2.5',
+      'Xterra'
+    ],
+    
+    // ═══ OPEL - Расширенные модели ═══
+    'Opel': [
+      'Adam', 'Agila', 'Ampera', 'Ampera-e', 'Antara 2.0', 'Antara 2.2', 'Antara 2.4', 'Antara 3.0',
+      'Astra 1.2', 'Astra 1.3', 'Astra 1.4', 'Astra 1.6', 'Astra 1.7', 'Astra 1.8', 'Astra 1.9', 'Astra 2.0', 'Astra 2.2', 'Astra OPC',
+      'Combo', 
+      'Corsa 1.0', 'Corsa 1.2', 'Corsa 1.3', 'Corsa 1.4', 'Corsa 1.6', 'Corsa 1.7', 'Corsa OPC', 'Corsa-e',
+      'Crossland', 'Crossland X',
+      'Frontera',
+      'Grandland', 'Grandland X',
+      'Insignia 1.4', 'Insignia 1.5', 'Insignia 1.6', 'Insignia 1.8', 'Insignia 2.0', 'Insignia 2.8', 'Insignia OPC',
+      'Karl', 
+      'Meriva 1.3', 'Meriva 1.4', 'Meriva 1.6', 'Meriva 1.7',
+      'Mokka 1.4', 'Mokka 1.6', 'Mokka 1.7', 'Mokka-e',
+      'Omega 2.0', 'Omega 2.2', 'Omega 2.5', 'Omega 2.6', 'Omega 3.0', 'Omega 3.2',
+      'Signum', 'Tigra',
+      'Vectra 1.6', 'Vectra 1.8', 'Vectra 1.9', 'Vectra 2.0', 'Vectra 2.2', 'Vectra 2.8', 'Vectra 3.0', 'Vectra 3.2',
+      'Vivaro', 
+      'Zafira 1.4', 'Zafira 1.6', 'Zafira 1.7', 'Zafira 1.8', 'Zafira 1.9', 'Zafira 2.0', 'Zafira 2.2', 'Zafira OPC', 'Zafira-e'
+    ],
+    
+    // ═══ PEUGEOT - Расширенные модели ═══
+    'Peugeot': [
+      '107', '108',
+      '206 1.1', '206 1.4', '206 1.6', '206 2.0',
+      '207 1.4', '207 1.6',
+      '208 1.0', '208 1.2', '208 1.4', '208 1.6', '208 e-208', '208 GTi',
+      '2008 1.2', '2008 1.5', '2008 1.6', '2008 e-2008',
+      '3008 1.2', '3008 1.5', '3008 1.6', '3008 2.0', '3008 Hybrid', '3008 Hybrid4',
+      '301', 
+      '307 1.4', '307 1.6', '307 2.0',
+      '308 1.2', '308 1.5', '308 1.6', '308 2.0', '308 GTi',
+      '4007', '4008',
+      '406 1.8', '406 2.0', '406 2.2', '406 3.0',
+      '407 1.6', '407 1.8', '407 2.0', '407 2.2', '407 2.7', '407 3.0',
+      '408 1.6', '408 2.0',
+      '5008 1.5', '5008 1.6', '5008 2.0', '5008 Hybrid',
+      '508 1.5', '508 1.6', '508 2.0', '508 2.2', '508 Hybrid', '508 PSE',
+      '607', '807',
+      'Boxer', 'Expert', 'Partner', 'RCZ', 'Rifter', 'Traveller'
+    ],
+    
+    'Porsche': ['718 Boxster', '718 Cayman', '911 Carrera', '911 Turbo', '911 GT3', '918 Spyder', '924', '928', '944', '968', 'Boxster', 'Carrera GT', 'Cayenne', 'Cayenne Coupe', 'Cayenne E-Hybrid', 'Cayenne GTS', 'Cayenne S', 'Cayenne Turbo', 'Cayman', 'Macan', 'Macan S', 'Macan GTS', 'Macan Turbo', 'Panamera', 'Panamera 4', 'Panamera S', 'Panamera GTS', 'Panamera Turbo', 'Panamera E-Hybrid', 'Taycan', 'Taycan 4S', 'Taycan Turbo', 'Taycan Turbo S'],
     'RAM': ['1500', '2500', '3500', 'ProMaster'],
-    'Renault': ['Arkana', 'Captur', 'Clio', 'Duster', 'Espace', 'Fluence', 'Grand Scenic', 'Kadjar', 'Kangoo', 'Kaptur', 'Koleos', 'Laguna', 'Logan', 'Master', 'Megane', 'Modus', 'Sandero', 'Scenic', 'Symbol', 'Talisman', 'Thalia', 'Trafic', 'Twingo', 'Vel Satis', 'Wind'],
+    
+    // ═══ RENAULT - Расширенные модели ═══
+    'Renault': [
+      'Arkana 1.3', 'Arkana 1.6',
+      'Captur 0.9', 'Captur 1.2', 'Captur 1.3', 'Captur 1.5',
+      'Clio 0.9', 'Clio 1.0', 'Clio 1.2', 'Clio 1.4', 'Clio 1.5', 'Clio 1.6', 'Clio RS',
+      'Duster 1.3', 'Duster 1.5', 'Duster 1.6', 'Duster 2.0',
+      'Espace', 'Fluence 1.5', 'Fluence 1.6', 'Fluence 2.0',
+      'Grand Scenic',
+      'Kadjar 1.2', 'Kadjar 1.3', 'Kadjar 1.5', 'Kadjar 1.6',
+      'Kangoo', 'Kaptur 1.6', 'Kaptur 2.0',
+      'Koleos 2.0', 'Koleos 2.5',
+      'Laguna 1.6', 'Laguna 1.8', 'Laguna 1.9', 'Laguna 2.0', 'Laguna 2.2', 'Laguna 3.0',
+      'Logan 1.2', 'Logan 1.4', 'Logan 1.5', 'Logan 1.6',
+      'Master',
+      'Megane 1.2', 'Megane 1.4', 'Megane 1.5', 'Megane 1.6', 'Megane 1.9', 'Megane 2.0', 'Megane RS',
+      'Modus', 
+      'Sandero 1.0', 'Sandero 1.2', 'Sandero 1.4', 'Sandero 1.5', 'Sandero 1.6', 'Sandero Stepway',
+      'Scenic 1.2', 'Scenic 1.4', 'Scenic 1.5', 'Scenic 1.6', 'Scenic 1.9', 'Scenic 2.0',
+      'Symbol', 'Talisman 1.5', 'Talisman 1.6', 'Talisman 1.8', 'Talisman 2.0',
+      'Thalia', 'Trafic', 'Twingo', 'Vel Satis', 'Wind', 'Zoe'
+    ],
+    
     'Rolls-Royce': ['Cullinan', 'Dawn', 'Ghost', 'Phantom', 'Silver Cloud', 'Silver Shadow', 'Silver Spur', 'Wraith'],
     'Saab': ['9-3', '9-4X', '9-5', '9-7X', '900', '9000'],
-    'Seat': ['Alhambra', 'Altea', 'Arona', 'Arosa', 'Ateca', 'Cordoba', 'Exeo', 'Ibiza', 'Leon', 'Mii', 'Tarraco', 'Toledo'],
-    'Skoda': ['Citigo', 'Fabia', 'Favorit', 'Felicia', 'Kamiq', 'Karoq', 'Kodiaq', 'Octavia', 'Rapid', 'Roomster', 'Scala', 'Superb', 'Yeti'],
+    'Seat': ['Alhambra', 'Altea', 'Arona', 'Arosa', 'Ateca', 'Cordoba', 'Exeo', 'Ibiza', 'Leon', 'Leon Cupra', 'Mii', 'Tarraco', 'Toledo'],
+    
+    // ═══ SKODA - Расширенные модели ═══
+    'Skoda': [
+      'Citigo', 
+      'Fabia 1.0', 'Fabia 1.2', 'Fabia 1.4', 'Fabia 1.6', 'Fabia 1.9', 'Fabia RS',
+      'Favorit', 'Felicia',
+      'Kamiq 1.0', 'Kamiq 1.5',
+      'Karoq 1.0', 'Karoq 1.5', 'Karoq 1.6', 'Karoq 2.0',
+      'Kodiaq 1.4', 'Kodiaq 1.5', 'Kodiaq 2.0', 'Kodiaq RS',
+      'Octavia 1.2', 'Octavia 1.4', 'Octavia 1.5', 'Octavia 1.6', 'Octavia 1.8', 'Octavia 1.9', 'Octavia 2.0', 'Octavia RS', 'Octavia Scout',
+      'Rapid 1.0', 'Rapid 1.2', 'Rapid 1.4', 'Rapid 1.6',
+      'Roomster', 
+      'Scala 1.0', 'Scala 1.5',
+      'Superb 1.4', 'Superb 1.5', 'Superb 1.6', 'Superb 1.8', 'Superb 1.9', 'Superb 2.0', 'Superb 2.5', 'Superb 2.8', 'Superb 3.6',
+      'Yeti 1.2', 'Yeti 1.4', 'Yeti 1.8', 'Yeti 2.0'
+    ],
+    
     'Smart': ['Crossblade', 'ForFour', 'ForTwo', 'Roadster'],
     'SsangYong': ['Actyon', 'Korando', 'Kyron', 'Musso', 'Rexton', 'Rodius', 'Tivoli', 'XLV'],
-    'Subaru': ['Ascent', 'BRZ', 'Crosstrek', 'Forester', 'Impreza', 'Legacy', 'Levorg', 'Outback', 'SVX', 'Tribeca', 'WRX', 'WRX STI', 'XV'],
-    'Suzuki': ['Alto', 'Baleno', 'Celerio', 'Ciaz', 'Ertiga', 'Grand Vitara', 'Ignis', 'Jimny', 'Kizashi', 'Liana', 'S-Cross', 'Samurai', 'Splash', 'Swift', 'SX4', 'Vitara', 'Wagon R', 'XL7'],
-    'Tesla': ['Cybertruck', 'Model 3', 'Model S', 'Model X', 'Model Y', 'Roadster'],
-    'Toyota': ['4Runner', '86', 'Alphard', 'Aqua', 'Auris', 'Avalon', 'Avensis', 'Aygo', 'bZ4X', 'C-HR', 'Camry', 'Celica', 'Corolla', 'Corona', 'Crown', 'FJ Cruiser', 'Fortuner', 'GT86', 'Highlander', 'Hilux', 'iQ', 'Land Cruiser', 'Land Cruiser Prado', 'Mark II', 'Matrix', 'Mirai', 'MR2', 'Previa', 'Prius', 'RAV4', 'Sequoia', 'Sienna', 'Supra', 'Tacoma', 'Tundra', 'Urban Cruiser', 'Vellfire', 'Venza', 'Verso', 'Yaris'],
+    'Subaru': ['Ascent', 'BRZ', 'Crosstrek', 'Forester', 'Impreza', 'Impreza WRX', 'Legacy', 'Levorg', 'Outback', 'SVX', 'Tribeca', 'WRX', 'WRX STI', 'XV'],
+    'Suzuki': ['Alto', 'Baleno', 'Celerio', 'Ciaz', 'Ertiga', 'Grand Vitara', 'Ignis', 'Jimny', 'Kizashi', 'Liana', 'S-Cross', 'Samurai', 'Splash', 'Swift', 'SX4', 'SX4 S-Cross', 'Vitara', 'Wagon R', 'XL7'],
+    'Tesla': ['Cybertruck', 'Model 3', 'Model 3 Standard', 'Model 3 Long Range', 'Model 3 Performance', 'Model S', 'Model S Long Range', 'Model S Plaid', 'Model X', 'Model X Long Range', 'Model X Plaid', 'Model Y', 'Model Y Long Range', 'Model Y Performance', 'Roadster'],
+    
+    // ═══ TOYOTA - Расширенные модели ═══
+    'Toyota': [
+      '4Runner', '86',
+      'Alphard', 'Aqua',
+      'Auris 1.2', 'Auris 1.33', 'Auris 1.4', 'Auris 1.6', 'Auris 1.8', 'Auris 2.0', 'Auris Hybrid',
+      'Avalon', 
+      'Avensis 1.6', 'Avensis 1.8', 'Avensis 2.0', 'Avensis 2.2', 'Avensis 2.4',
+      'Aygo',
+      'bZ4X',
+      'C-HR 1.2', 'C-HR 1.8', 'C-HR 2.0', 'C-HR Hybrid',
+      'Camry 2.0', 'Camry 2.2', 'Camry 2.4', 'Camry 2.5', 'Camry 3.0', 'Camry 3.5', 'Camry Hybrid',
+      'Celica', 'Corolla', 'Corolla 1.33', 'Corolla 1.4', 'Corolla 1.6', 'Corolla 1.8', 'Corolla 2.0', 'Corolla Hybrid', 'Corolla Cross',
+      'Corona', 'Crown',
+      'FJ Cruiser', 'Fortuner',
+      'GT86',
+      'Highlander 2.7', 'Highlander 3.0', 'Highlander 3.3', 'Highlander 3.5', 'Highlander Hybrid',
+      'Hilux 2.4', 'Hilux 2.5', 'Hilux 2.7', 'Hilux 2.8', 'Hilux 3.0',
+      'iQ',
+      'Land Cruiser 2.7', 'Land Cruiser 2.8', 'Land Cruiser 3.0', 'Land Cruiser 4.0', 'Land Cruiser 4.2', 'Land Cruiser 4.5', 'Land Cruiser 4.6', 'Land Cruiser 4.7', 'Land Cruiser 5.7',
+      'Land Cruiser Prado 2.7', 'Land Cruiser Prado 2.8', 'Land Cruiser Prado 3.0', 'Land Cruiser Prado 4.0',
+      'Mark II', 'Matrix', 'Mirai', 'MR2',
+      'Previa', 
+      'Prius', 'Prius 1.5', 'Prius 1.8', 'Prius PHV', 'Prius Prime', 'Prius+', 'Prius C', 'Prius V',
+      'RAV4 2.0', 'RAV4 2.2', 'RAV4 2.4', 'RAV4 2.5', 'RAV4 Hybrid', 'RAV4 Prime', 'RAV4 PHV',
+      'Sequoia', 'Sienna', 'Supra',
+      'Tacoma', 'Tundra',
+      'Urban Cruiser', 'Vellfire', 'Venza',
+      'Verso 1.6', 'Verso 1.8', 'Verso 2.0', 'Verso 2.2',
+      'Yaris 1.0', 'Yaris 1.3', 'Yaris 1.4', 'Yaris 1.5', 'Yaris Hybrid', 'Yaris Cross', 'Yaris Cross Hybrid', 'Yaris GR'
+    ],
+    
     'UAZ': ['Hunter', 'Patriot', 'Pickup', 'Profi'],
-    'Volkswagen': ['Amarok', 'Arteon', 'Atlas', 'Beetle', 'Bora', 'Caddy', 'Caravelle', 'CC', 'Crafter', 'Eos', 'Fox', 'Golf', 'Golf Plus', 'ID.3', 'ID.4', 'ID.5', 'Jetta', 'Lupo', 'Multivan', 'New Beetle', 'Passat', 'Passat CC', 'Phaeton', 'Pointer', 'Polo', 'Scirocco', 'Sharan', 'T-Cross', 'T-Roc', 'Taos', 'Tiguan', 'Touareg', 'Touran', 'Transporter', 'up!', 'Vento'],
-    'Volvo': ['240', '740', '850', '940', '960', 'C30', 'C40', 'C70', 'S40', 'S60', 'S70', 'S80', 'S90', 'V40', 'V50', 'V60', 'V70', 'V90', 'XC40', 'XC60', 'XC70', 'XC90']
+    
+    // ═══ VOLKSWAGEN - Расширенные модели ═══
+    'Volkswagen': [
+      'Amarok 2.0', 'Amarok 3.0',
+      'Arteon 1.5', 'Arteon 2.0',
+      'Atlas', 'Beetle', 'Bora',
+      'Caddy 1.2', 'Caddy 1.4', 'Caddy 1.6', 'Caddy 1.9', 'Caddy 2.0',
+      'Caravelle', 'CC 1.8', 'CC 2.0', 'CC 3.6',
+      'Crafter', 'Eos', 'Fox',
+      'Golf 1.0', 'Golf 1.2', 'Golf 1.4', 'Golf 1.5', 'Golf 1.6', 'Golf 1.8', 'Golf 1.9', 'Golf 2.0', 'Golf 2.3', 'Golf 2.8', 'Golf GTI', 'Golf GTD', 'Golf GTE', 'Golf R', 'Golf R32', 'Golf Plus', 'Golf Sportsvan', 'Golf Variant',
+      'ID.3', 'ID.4', 'ID.5', 'ID.Buzz',
+      'Jetta 1.2', 'Jetta 1.4', 'Jetta 1.6', 'Jetta 1.8', 'Jetta 1.9', 'Jetta 2.0', 'Jetta 2.5',
+      'Lupo', 'Multivan',
+      'New Beetle', 'New Beetle 1.4', 'New Beetle 1.6', 'New Beetle 1.8', 'New Beetle 1.9', 'New Beetle 2.0', 'New Beetle 2.5',
+      'Passat 1.4', 'Passat 1.6', 'Passat 1.8', 'Passat 1.9', 'Passat 2.0', 'Passat 2.5', 'Passat 2.8', 'Passat 3.2', 'Passat 3.6', 'Passat CC', 'Passat GTE', 'Passat Alltrack', 'Passat Variant',
+      'Phaeton', 'Pointer',
+      'Polo 1.0', 'Polo 1.2', 'Polo 1.4', 'Polo 1.5', 'Polo 1.6', 'Polo 1.8', 'Polo 1.9', 'Polo 2.0', 'Polo GTI', 'Polo R',
+      'Scirocco 1.4', 'Scirocco 2.0', 'Scirocco R',
+      'Sharan 1.4', 'Sharan 1.8', 'Sharan 1.9', 'Sharan 2.0', 'Sharan 2.8',
+      'T-Cross 1.0', 'T-Cross 1.5',
+      'T-Roc 1.0', 'T-Roc 1.5', 'T-Roc 2.0', 'T-Roc R',
+      'Taos 1.4', 'Taos 1.5',
+      'Tiguan 1.4', 'Tiguan 1.5', 'Tiguan 2.0', 'Tiguan Allspace', 'Tiguan R',
+      'Touareg 2.5', 'Touareg 3.0', 'Touareg 3.2', 'Touareg 3.6', 'Touareg 4.2', 'Touareg 5.0', 'Touareg R',
+      'Touran 1.2', 'Touran 1.4', 'Touran 1.6', 'Touran 1.8', 'Touran 1.9', 'Touran 2.0',
+      'Transporter', 'up!', 'e-up!', 'Vento'
+    ],
+    
+    // ═══ VOLVO - Расширенные модели ═══
+    'Volvo': [
+      '240', '740', '850', '940', '960',
+      'C30 1.6', 'C30 1.8', 'C30 2.0', 'C30 2.4', 'C30 2.5',
+      'C40',
+      'C70',
+      'S40 1.6', 'S40 1.8', 'S40 2.0', 'S40 2.4', 'S40 2.5',
+      'S60 2.0', 'S60 2.4', 'S60 2.5', 'S60 3.0', 'S60 T5', 'S60 T6', 'S60 T8',
+      'S70',
+      'S80 2.0', 'S80 2.4', 'S80 2.5', 'S80 2.9', 'S80 3.0', 'S80 3.2', 'S80 4.4', 'S80 T5', 'S80 T6',
+      'S90 2.0', 'S90 T5', 'S90 T6', 'S90 T8',
+      'V40 1.6', 'V40 1.8', 'V40 2.0', 'V40 Cross Country',
+      'V50 1.6', 'V50 1.8', 'V50 2.0', 'V50 2.4', 'V50 2.5',
+      'V60 2.0', 'V60 2.4', 'V60 T5', 'V60 T6', 'V60 T8', 'V60 Cross Country',
+      'V70 2.0', 'V70 2.3', 'V70 2.4', 'V70 2.5', 'V70 3.0', 'V70 3.2', 'V70 T5', 'V70 T6',
+      'V90 2.0', 'V90 T5', 'V90 T6', 'V90 T8', 'V90 Cross Country',
+      'XC40 1.5', 'XC40 2.0', 'XC40 T3', 'XC40 T4', 'XC40 T5', 'XC40 Recharge',
+      'XC60 2.0', 'XC60 2.4', 'XC60 3.0', 'XC60 3.2', 'XC60 T5', 'XC60 T6', 'XC60 T8',
+      'XC70 2.4', 'XC70 2.5', 'XC70 3.0', 'XC70 3.2',
+      'XC90 2.0', 'XC90 2.4', 'XC90 2.5', 'XC90 2.9', 'XC90 3.2', 'XC90 4.4', 'XC90 T5', 'XC90 T6', 'XC90 T8'
+    ]
   },
   
   truck: {
@@ -116,7 +554,7 @@ const BRANDS_DATA = {
     'Aprilia': ['Dorsoduro', 'Mana', 'RSV4', 'RSV Mille', 'Shiver', 'SL1000 Falco', 'SMV750 Dorsoduro', 'SR Motard', 'SRV850', 'Tuono'],
     'BMW': ['C 400', 'C 600', 'C 650', 'CE 04', 'F 650', 'F 700', 'F 750', 'F 800', 'F 850', 'F 900', 'G 310', 'HP2', 'HP4', 'K 1200', 'K 1300', 'K 1600', 'R 1100', 'R 1150', 'R 1200', 'R 1250', 'R nineT', 'R18', 'S 1000', 'S 1000 R', 'S 1000 RR', 'S 1000 XR'],
     'Ducati': ['1098', '1198', '1199', '1299', '748', '749', '848', '899', '916', '959', '996', '998', '999', 'Diavel', 'GT1000', 'Hypermotard', 'Monster', 'Monster 696', 'Monster 796', 'Monster 821', 'Monster 1200', 'Multistrada', 'Panigale V2', 'Panigale V4', 'Scrambler', 'SportClassic', 'Streetfighter', 'Supersport'],
-    'Harley': ['Breakout', 'Dyna', 'Electra Glide', 'Fat Bob', 'Fat Boy', 'Forty-Eight', 'Heritage', 'Iron 883', 'Iron 1200', 'Low Rider', 'Night Rod', 'Road Glide', 'Road King', 'Softail', 'Sportster', 'Street', 'Street Bob', 'Street Glide', 'Touring', 'V-Rod', 'Wide Glide'],
+    'Harley-Davidson': ['Breakout', 'Dyna', 'Electra Glide', 'Fat Bob', 'Fat Boy', 'Forty-Eight', 'Heritage', 'Iron 883', 'Iron 1200', 'Low Rider', 'Night Rod', 'Road Glide', 'Road King', 'Softail', 'Sportster', 'Street', 'Street Bob', 'Street Glide', 'Touring', 'V-Rod', 'Wide Glide'],
     'Honda': ['Africa Twin', 'CB125', 'CB300', 'CB400', 'CB500', 'CB650', 'CB1000', 'CBF600', 'CBF1000', 'CBR125', 'CBR250', 'CBR300', 'CBR500', 'CBR600', 'CBR650', 'CBR900', 'CBR1000', 'CRF250', 'CRF450', 'CRF1000', 'CTX700', 'Deauville', 'Forza', 'Gold Wing', 'Hornet', 'Lead', 'NC700', 'NC750', 'PCX', 'Rebel', 'Shadow', 'Silverwing', 'Transalp', 'Varadero', 'VFR800', 'VFR1200', 'VT750', 'VTR1000', 'X-ADV'],
     'Indian': ['Chief', 'Chief Dark Horse', 'Chieftain', 'FTR 1200', 'FTR Rally', 'Roadmaster', 'Scout', 'Scout Bobber', 'Scout Sixty', 'Springfield'],
     'Kawasaki': ['Eliminator', 'ER-6', 'KLR 650', 'Ninja 250', 'Ninja 300', 'Ninja 400', 'Ninja 650', 'Ninja 1000', 'Ninja H2', 'Versys 650', 'Versys 1000', 'Vulcan 650', 'Vulcan 900', 'Vulcan 1700', 'W800', 'Z125', 'Z250', 'Z400', 'Z650', 'Z750', 'Z800', 'Z900', 'Z1000', 'ZX-6R', 'ZX-10R', 'ZX-12R', 'ZX-14R', 'ZZR1400'],
@@ -147,8 +585,6 @@ const categoryNames = {
   water: '🚤 Водный'
 };
 
-// Функция для генерации рандомного привода на основе модели
-
 // Типы запчастей и комплектующих
 const PARTS_TYPES = [
     {type: 'Двигатель и навесное', desc: 'блок, головка, турбина, навесное'},
@@ -172,6 +608,19 @@ const PARTS_CONDITIONS = [
     'Требует ремонта'
 ];
 
+// ═══ ВИДЫ ТОПЛИВА ═══
+const FUEL_TYPES = [
+    'Бензин',
+    'Дизель',
+    'Газ (метан)',
+    'Газ (пропан)',
+    'Бензин + газ',
+    'Гибрид',
+    'Гибрид + газ',
+    'Электро',
+    'Plug-in гибрид'
+];
+
 function randomDrive(brand, model, category) {
   if (category !== 'car') return null;
   
@@ -179,163 +628,27 @@ function randomDrive(brand, model, category) {
   const suvModels = ['X5', 'X3', 'GLE', 'GLC', 'Q5', 'Q7', 'Tiguan', 'Touareg', 'CR-V', 'RAV4', 'Sportage', 'Tucson', 'Sorento', 'CX-5', 'Outlander', 'Pajero', 'Land Cruiser', 'Range Rover', 'Discovery', 'Cayenne', 'Macan'];
   const isSUV = suvModels.some(suv => model.includes(suv));
   
+  const r = Math.random();
   if (isSUV) {
-    const rand = Math.random();
-    if (rand < 0.7) return 'Полный';
-    if (rand < 0.85) return 'Передний';
-    return 'Задний';
+    return r < 0.7 ? 'Полный' : (r < 0.9 ? 'Передний' : 'Задний');
   }
-  
-  // Спортивные модели - чаще задний или полный
-  const sportModels = ['M3', 'M5', 'AMG', 'RS', 'S-Line', 'R-Line', 'GT'];
-  const isSport = sportModels.some(sport => model.includes(sport));
-  
-  if (isSport) {
-    const rand = Math.random();
-    if (rand < 0.5) return 'Задний';
-    if (rand < 0.8) return 'Полный';
-    return 'Передний';
-  }
-  
-  // Обычные авто - чаще передний
-  const rand = Math.random();
-  if (rand < 0.75) return 'Передний';
-  if (rand < 0.90) return 'Полный';
-  return 'Задний';
+  return r < 0.6 ? 'Передний' : (r < 0.85 ? 'Задний' : 'Полный');
 }
 
-// Функция для рандомного выбора пользователя
+// Функции для тестовых данных
+const now = new Date();
+const fifteenDaysAgo = new Date(now.getTime() - 15 * 24 * 60 * 60 * 1000);
+
+function randomDate(start, end) {
+  const d = new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
+  return d.toISOString();
+}
+
 function randomUser() {
-  const users = ['user_1', 'user_2', 'user_3', 'user_4', 'user_5'];
-  return users[Math.floor(Math.random() * users.length)];
+  return 'test_user_' + Math.floor(Math.random() * 5 + 1);
 }
 
-// 98 объявлений с рандомными датами за 15 дней и полем drive
+// Тестовые данные
 function initCarsData() {
-  function randomDate(start, end) {
-    return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
-  }
-
-  const now = new Date();
-  const fifteenDaysAgo = new Date(now.getTime() - 15 * 24 * 60 * 60 * 1000);
-
-  return [
-    {id:1,category:'car',brand:'Toyota',model:'Camry',year:2020,price:25000,currency:'$',mileage:45000,engine:'2.5 л',transmission:'Автомат',fuel:'Бензин',drive:'Передний',city:'Тирасполь',registration:'ПМР',description:'Отличное состояние',photos:['https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?w=400'],isTop:true,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:2,category:'car',brand:'BMW',model:'X5',year:2019,price:42000,currency:'$',mileage:62000,engine:'3.0 л',transmission:'Автомат',fuel:'Дизель',drive:'Полный',city:'Кишинёв',registration:'Молдова',description:'Полный привод',photos:['https://images.unsplash.com/photo-1555215695-3004980ad54e?w=400'],isTop:true,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:3,category:'car',brand:'Mercedes',model:'E-Class',year:2021,price:58000,currency:'€',mileage:28000,engine:'2.0 л',transmission:'Автомат',fuel:'Бензин',drive:'Задний',city:'Тирасполь',registration:'ПМР',description:'AMG пакет',photos:[],isTop:true,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:4,category:'car',brand:'Hyundai',model:'Solaris',year:2022,price:13500,currency:'$',mileage:15000,engine:'1.6 л',transmission:'Автомат',fuel:'Бензин',drive:'Передний',city:'Рыбница',registration:'ПМР',description:'Новый',photos:[],isTop:true,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:5,category:'truck',brand:'Mercedes',model:'Actros',year:2018,price:75000,currency:'€',mileage:280000,engine:'12.8 л',transmission:'Автомат',fuel:'Дизель',drive:null,city:'Тирасполь',registration:'ПМР',description:'Грузовик',photos:[],isTop:true,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:6,category:'moto',brand:'Harley',model:'Iron 883',year:2020,price:15000,currency:'$',mileage:8000,engine:'1.2 л',transmission:'Механика',fuel:'Бензин',drive:null,city:'Кишинёв',registration:'Молдова',description:'Мотоцикл',photos:[],isTop:true,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:7,category:'special',brand:'Caterpillar',model:'320',year:2017,price:95000,currency:'$',mileage:4500,engine:'4.4 л',transmission:'Гидравлика',fuel:'Дизель',drive:null,city:'Рыбница',registration:'ПМР',description:'Экскаватор',photos:[],isTop:true,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:8,category:'water',brand:'Yamaha',model:'VX',year:2021,price:18000,currency:'$',mileage:150,engine:'1.8 л',transmission:'Авто',fuel:'Бензин',drive:null,city:'Днестровск',registration:'ПМР',description:'Гидроцикл',photos:[],isTop:true,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:9,category:'car',brand:'Audi',model:'A4',year:2020,price:35000,currency:'€',mileage:48000,engine:'2.0 л',transmission:'Автомат',fuel:'Бензин',drive:'Полный',city:'Тирасполь',registration:'ПМР',description:'Quattro',photos:[],isTop:true,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:10,category:'car',brand:'Volkswagen',model:'Polo',year:2019,price:12000,currency:'$',mileage:65000,engine:'1.6 л',transmission:'Механика',fuel:'Бензин',drive:'Передний',city:'Бельцы',registration:'Молдова',description:'Надежный',photos:[],isTop:true,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:11,category:'car',brand:'Kia',model:'Sportage',year:2021,price:28000,currency:'$',mileage:35000,engine:'2.0 л',transmission:'Автомат',fuel:'Бензин',drive:'Полный',city:'Кишинёв',registration:'Молдова',description:'Кроссовер',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:12,category:'car',brand:'Mazda',model:'CX-5',year:2020,price:26500,currency:'$',mileage:42000,engine:'2.5 л',transmission:'Автомат',fuel:'Бензин',drive:'Полный',city:'Рыбница',registration:'ПМР',description:'Полный привод',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:13,category:'car',brand:'Honda',model:'Accord',year:2019,price:22000,currency:'$',mileage:58000,engine:'2.4 л',transmission:'Вариатор',fuel:'Бензин',drive:'Передний',city:'Тирасполь',registration:'ПМР',description:'Японская надежность',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:14,category:'car',brand:'Nissan',model:'Qashqai',year:2018,price:18500,currency:'€',mileage:72000,engine:'1.6 л',transmission:'Вариатор',fuel:'Бензин',drive:'Передний',city:'Григориополь',registration:'ПМР',description:'Семейный',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:15,category:'car',brand:'Ford',model:'Focus',year:2017,price:11000,currency:'$',mileage:95000,engine:'1.6 л',transmission:'Механика',fuel:'Бензин',drive:'Передний',city:'Дубоссары',registration:'ПМР',description:'В хорошем состоянии',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:16,category:'car',brand:'Chevrolet',model:'Cruze',year:2016,price:9500,currency:'$',mileage:110000,engine:'1.8 л',transmission:'Автомат',fuel:'Бензин',drive:'Передний',city:'Каменка',registration:'ПМР',description:'Недорого',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:17,category:'car',brand:'Skoda',model:'Rapid',year:2020,price:14500,currency:'€',mileage:38000,engine:'1.6 л',transmission:'Автомат',fuel:'Бензин',drive:'Передний',city:'Слободзея',registration:'ПМР',description:'Экономичный',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:18,category:'car',brand:'Renault',model:'Logan',year:2018,price:8500,currency:'$',mileage:88000,engine:'1.6 л',transmission:'Механика',fuel:'Бензин',drive:'Передний',city:'Бендеры',registration:'Молдова',description:'Простой и надежный',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:19,category:'car',brand:'Lada',model:'Vesta',year:2021,price:9800,currency:'$',mileage:22000,engine:'1.6 л',transmission:'Механика',fuel:'Бензин',drive:'Передний',city:'Кагул',registration:'Молдова',description:'Новая Лада',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:20,category:'car',brand:'Peugeot',model:'308',year:2019,price:15000,currency:'€',mileage:62000,engine:'1.6 л',transmission:'Автомат',fuel:'Дизель',drive:'Передний',city:'Тирасполь',registration:'ПМР',description:'Французский стиль',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:21,category:'car',brand:'Citroen',model:'C4',year:2018,price:13000,currency:'$',mileage:75000,engine:'1.6 л',transmission:'Автомат',fuel:'Бензин',drive:'Передний',city:'Кишинёв',registration:'Молдова',description:'Комфортный',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:22,category:'car',brand:'Opel',model:'Astra',year:2017,price:11500,currency:'€',mileage:92000,engine:'1.4 л',transmission:'Механика',fuel:'Бензин',drive:'Передний',city:'Рыбница',registration:'ПМР',description:'Немецкое качество',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:23,category:'car',brand:'Seat',model:'Leon',year:2019,price:16000,currency:'€',mileage:55000,engine:'1.5 л',transmission:'Робот',fuel:'Бензин',drive:'Передний',city:'Бельцы',registration:'Молдова',description:'TSI DSG',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:24,category:'car',brand:'Subaru',model:'Outback',year:2018,price:24000,currency:'$',mileage:68000,engine:'2.5 л',transmission:'Вариатор',fuel:'Бензин',drive:'Полный',city:'Тирасполь',registration:'ПМР',description:'Симметричный полный привод',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:25,category:'car',brand:'Mitsubishi',model:'Outlander',year:2020,price:27000,currency:'$',mileage:38000,engine:'2.4 л',transmission:'Вариатор',fuel:'Бензин',drive:'Полный',city:'Кишинёв',registration:'Молдова',description:'PHEV',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:26,category:'car',brand:'Lexus',model:'RX',year:2019,price:52000,currency:'$',mileage:42000,engine:'3.5 л',transmission:'Автомат',fuel:'Бензин',drive:'Полный',city:'Тирасполь',registration:'ПМР',description:'Премиум',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:27,category:'car',brand:'Infiniti',model:'QX50',year:2018,price:35000,currency:'$',mileage:58000,engine:'3.7 л',transmission:'Автомат',fuel:'Бензин',drive:'Полный',city:'Кишинёв',registration:'Молдова',description:'Luxury',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:28,category:'car',brand:'Volvo',model:'XC60',year:2019,price:42000,currency:'€',mileage:45000,engine:'2.0 л',transmission:'Автомат',fuel:'Дизель',drive:'Полный',city:'Бельцы',registration:'Молдова',description:'Безопасность прежде всего',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:29,category:'car',brand:'Land Rover',model:'Discovery',year:2018,price:48000,currency:'$',mileage:52000,engine:'3.0 л',transmission:'Автомат',fuel:'Дизель',drive:'Полный',city:'Тирасполь',registration:'ПМР',description:'Настоящий внедорожник',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:30,category:'car',brand:'Jeep',model:'Grand Cherokee',year:2019,price:45000,currency:'$',mileage:48000,engine:'3.6 л',transmission:'Автомат',fuel:'Бензин',drive:'Полный',city:'Кишинёв',registration:'Молдова',description:'4x4',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:31,category:'car',brand:'Porsche',model:'Cayenne',year:2017,price:55000,currency:'€',mileage:72000,engine:'3.0 л',transmission:'Автомат',fuel:'Дизель',drive:'Полный',city:'Рыбница',registration:'ПМР',description:'Спортивное SUV',photos:[],isTop:true,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:32,category:'truck',brand:'Scania',model:'R450',year:2019,price:85000,currency:'€',mileage:320000,engine:'13.0 л',transmission:'Автомат',fuel:'Дизель',drive:null,city:'Кишинёв',registration:'Молдова',description:'Тягач седельный',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:33,category:'truck',brand:'Volvo',model:'FH16',year:2020,price:95000,currency:'€',mileage:250000,engine:'16.0 л',transmission:'Автомат',fuel:'Дизель',drive:null,city:'Тирасполь',registration:'ПМР',description:'Euro 6',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:34,category:'truck',brand:'MAN',model:'TGX',year:2018,price:78000,currency:'€',mileage:380000,engine:'12.4 л',transmission:'Автомат',fuel:'Дизель',drive:null,city:'Бельцы',registration:'Молдова',description:'Надежный',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:35,category:'truck',brand:'Kamaz',model:'65207',year:2021,price:62000,currency:'$',mileage:85000,engine:'11.7 л',transmission:'Механика',fuel:'Дизель',drive:null,city:'Рыбница',registration:'ПМР',description:'Самосвал',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:36,category:'special',brand:'Komatsu',model:'PC200',year:2019,price:92000,currency:'$',mileage:3200,engine:'6.7 л',transmission:'Гидравлика',fuel:'Дизель',drive:null,city:'Кишинёв',registration:'Молдова',description:'Экскаватор гусеничный',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:37,category:'special',brand:'Liebherr',model:'R934',year:2020,price:105000,currency:'€',mileage:2800,engine:'5.7 л',transmission:'Гидравлика',fuel:'Дизель',drive:null,city:'Тирасполь',registration:'ПМР',description:'18 тонн',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:38,category:'special',brand:'Hitachi',model:'ZX210',year:2018,price:88000,currency:'$',mileage:4200,engine:'5.9 л',transmission:'Гидравлика',fuel:'Дизель',drive:null,city:'Бельцы',registration:'Молдова',description:'Экскаватор 21т',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:39,category:'car',brand:'Toyota',model:'RAV4',year:2021,price:33000,currency:'$',mileage:25000,engine:'2.5 л',transmission:'Автомат',fuel:'Бензин',drive:'Полный',city:'Кишинёв',registration:'Молдова',description:'Гибрид AWD',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:40,category:'car',brand:'BMW',model:'X3',year:2020,price:38000,currency:'€',mileage:42000,engine:'2.0 л',transmission:'Автомат',fuel:'Дизель',drive:'Полный',city:'Тирасполь',registration:'ПМР',description:'xDrive',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:41,category:'car',brand:'Mercedes',model:'GLE',year:2020,price:62000,currency:'€',mileage:38000,engine:'3.0 л',transmission:'Автомат',fuel:'Дизель',drive:'Полный',city:'Кишинёв',registration:'Молдова',description:'4Matic',photos:[],isTop:true,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:42,category:'car',brand:'Audi',model:'Q5',year:2019,price:42000,currency:'€',mileage:55000,engine:'2.0 л',transmission:'Автомат',fuel:'Бензин',drive:'Полный',city:'Бельцы',registration:'Молдова',description:'Quattro Premium',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:43,category:'car',brand:'Volkswagen',model:'Tiguan',year:2021,price:29000,currency:'$',mileage:32000,engine:'2.0 л',transmission:'Автомат',fuel:'Бензин',drive:'Полный',city:'Рыбница',registration:'ПМР',description:'4Motion R-Line',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:44,category:'car',brand:'Hyundai',model:'Tucson',year:2020,price:24000,currency:'$',mileage:38000,engine:'2.0 л',transmission:'Автомат',fuel:'Дизель',drive:'Полный',city:'Тирасполь',registration:'ПМР',description:'Полная комплектация',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:45,category:'car',brand:'Kia',model:'Sorento',year:2019,price:28000,currency:'$',mileage:52000,engine:'2.2 л',transmission:'Автомат',fuel:'Дизель',drive:'Полный',city:'Кагул',registration:'Молдова',description:'7 мест 4WD',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:46,category:'car',brand:'Mazda',model:'6',year:2018,price:18000,currency:'$',mileage:68000,engine:'2.5 л',transmission:'Автомат',fuel:'Бензин',drive:'Передний',city:'Григориополь',registration:'ПМР',description:'Седан бизнес класса',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:47,category:'car',brand:'Honda',model:'CR-V',year:2020,price:29000,currency:'$',mileage:42000,engine:'1.5 л',transmission:'Вариатор',fuel:'Бензин',drive:'Полный',city:'Днестровск',registration:'ПМР',description:'Турбо AWD',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:48,category:'car',brand:'Nissan',model:'X-Trail',year:2019,price:23000,currency:'$',mileage:58000,engine:'2.0 л',transmission:'Вариатор',fuel:'Бензин',drive:'Полный',city:'Слободзея',registration:'ПМР',description:'7 мест',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:49,category:'car',brand:'Ford',model:'Kuga',year:2020,price:26000,currency:'$',mileage:45000,engine:'2.0 л',transmission:'Автомат',fuel:'Бензин',drive:'Полный',city:'Дубоссары',registration:'ПМР',description:'EcoBoost AWD',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:50,category:'car',brand:'Skoda',model:'Octavia',year:2021,price:22000,currency:'€',mileage:28000,engine:'1.5 л',transmission:'Робот',fuel:'Бензин',drive:'Передний',city:'Каменка',registration:'ПМР',description:'TSI DSG',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:51,category:'truck',brand:'DAF',model:'XF',year:2019,price:72000,currency:'€',mileage:380000,engine:'12.9 л',transmission:'Автомат',fuel:'Дизель',drive:null,city:'Кишинёв',registration:'Молдова',description:'Тягач седельный',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:52,category:'truck',brand:'Iveco',model:'Stralis',year:2018,price:58000,currency:'€',mileage:420000,engine:'11.0 л',transmission:'Автомат',fuel:'Дизель',drive:null,city:'Тирасполь',registration:'ПМР',description:'Euro 6',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:53,category:'truck',brand:'Renault',model:'T',year:2020,price:68000,currency:'€',mileage:280000,engine:'11.0 л',transmission:'Автомат',fuel:'Дизель',drive:null,city:'Рыбница',registration:'ПМР',description:'High Sleeper Cab',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:54,category:'truck',brand:'Mercedes',model:'Arocs',year:2019,price:78000,currency:'€',mileage:220000,engine:'10.7 л',transmission:'Автомат',fuel:'Дизель',drive:null,city:'Бельцы',registration:'Молдова',description:'Самосвал 8x4',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:55,category:'moto',brand:'Ducati',model:'Monster 821',year:2020,price:16000,currency:'€',mileage:8500,engine:'0.8 л',transmission:'Механика',fuel:'Бензин',drive:null,city:'Кишинёв',registration:'Молдова',description:'Naked bike',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:56,category:'moto',brand:'BMW',model:'R 1250 GS',year:2021,price:22000,currency:'€',mileage:12000,engine:'1.25 л',transmission:'Механика',fuel:'Бензин',drive:null,city:'Тирасполь',registration:'ПМР',description:'Adventure',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:57,category:'moto',brand:'Yamaha',model:'MT-09',year:2019,price:11000,currency:'$',mileage:18000,engine:'0.85 л',transmission:'Механика',fuel:'Бензин',drive:null,city:'Рыбница',registration:'ПМР',description:'Street fighter',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:58,category:'moto',brand:'Kawasaki',model:'Z900',year:2020,price:12500,currency:'$',mileage:14000,engine:'0.95 л',transmission:'Механика',fuel:'Бензин',drive:null,city:'Бендеры',registration:'Молдова',description:'Naked',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:59,category:'special',brand:'Volvo',model:'EC210',year:2019,price:88000,currency:'€',mileage:3800,engine:'5.7 л',transmission:'Гидравлика',fuel:'Дизель',drive:null,city:'Тирасполь',registration:'ПМР',description:'Гусеничный',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:60,category:'special',brand:'Hyundai',model:'R210',year:2020,price:82000,currency:'$',mileage:2900,engine:'5.9 л',transmission:'Гидравлика',fuel:'Дизель',drive:null,city:'Кишинёв',registration:'Молдова',description:'Экскаватор 21т',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:61,category:'special',brand:'Doosan',model:'DX225',year:2018,price:75000,currency:'$',mileage:4200,engine:'5.9 л',transmission:'Гидравлика',fuel:'Дизель',drive:null,city:'Рыбница',registration:'ПМР',description:'22 тонны',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:62,category:'special',brand:'JCB',model:'4CX',year:2020,price:72000,currency:'€',mileage:2800,engine:'4.8 л',transmission:'Гидравлика',fuel:'Дизель',drive:null,city:'Бельцы',registration:'Молдова',description:'Погрузчик-экскаватор',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:63,category:'water',brand:'Yamaha',model:'FX',year:2021,price:17000,currency:'$',mileage:60,engine:'1.8 л',transmission:'Авто',fuel:'Бензин',drive:null,city:'Днестровск',registration:'ПМР',description:'Cruiser HO',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:64,category:'water',brand:'BRP',model:'Sea-Doo RXT',year:2020,price:19000,currency:'$',mileage:85,engine:'1.6 л',transmission:'Авто',fuel:'Бензин',drive:null,city:'Тирасполь',registration:'ПМР',description:'Performance',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:65,category:'water',brand:'Kawasaki',model:'Jet Ski STX',year:2019,price:13500,currency:'$',mileage:140,engine:'1.5 л',transmission:'Авто',fuel:'Бензин',drive:null,city:'Кишинёв',registration:'Молдова',description:'Rec',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:66,category:'water',brand:'Yamaha',model:'GP1800',year:2021,price:18500,currency:'$',mileage:45,engine:'1.8 л',transmission:'Авто',fuel:'Бензин',drive:null,city:'Днестровск',registration:'ПМР',description:'SVHO',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:67,category:'car',brand:'Tesla',model:'Model 3',year:2022,price:48000,currency:'$',mileage:12000,engine:'Электро',transmission:'Автомат',fuel:'Электро',drive:'Задний',city:'Кишинёв',registration:'Молдова',description:'Long Range',photos:[],isTop:true,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:68,category:'car',brand:'Genesis',model:'GV80',year:2021,price:62000,currency:'$',mileage:18000,engine:'3.5 л',transmission:'Автомат',fuel:'Бензин',drive:'Полный',city:'Тирасполь',registration:'ПМР',description:'Премиум SUV',photos:[],isTop:true,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:69,category:'car',brand:'Alfa Romeo',model:'Giulia',year:2020,price:42000,currency:'€',mileage:32000,engine:'2.0 л',transmission:'Автомат',fuel:'Бензин',drive:'Задний',city:'Кишинёв',registration:'Молдова',description:'Итальянский стиль',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:70,category:'car',brand:'Maserati',model:'Ghibli',year:2019,price:58000,currency:'$',mileage:42000,engine:'3.0 л',transmission:'Автомат',fuel:'Бензин',drive:'Задний',city:'Бельцы',registration:'Молдова',description:'Роскошный седан',photos:[],isTop:true,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:71,category:'car',brand:'Jaguar',model:'XE',year:2019,price:35000,currency:'€',mileage:48000,engine:'2.0 л',transmission:'Автомат',fuel:'Дизель',drive:'Задний',city:'Тирасполь',registration:'ПМР',description:'Британский премиум',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:72,category:'car',brand:'Cadillac',model:'XT5',year:2020,price:52000,currency:'$',mileage:35000,engine:'3.6 л',transmission:'Автомат',fuel:'Бензин',drive:'Полный',city:'Кишинёв',registration:'Молдова',description:'Американская роскошь',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:73,category:'car',brand:'Range Rover',model:'Sport',year:2019,price:72000,currency:'$',mileage:45000,engine:'3.0 л',transmission:'Автомат',fuel:'Дизель',drive:'Полный',city:'Тирасполь',registration:'ПМР',description:'HSE Dynamic',photos:[],isTop:true,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:74,category:'car',brand:'Jaguar',model:'F-Pace',year:2020,price:48000,currency:'$',mileage:38000,engine:'2.0 л',transmission:'Автомат',fuel:'Дизель',drive:'Полный',city:'Рыбница',registration:'ПМР',description:'R-Sport',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:75,category:'car',brand:'Peugeot',model:'3008',year:2021,price:28000,currency:'€',mileage:25000,engine:'1.5 л',transmission:'Автомат',fuel:'Дизель',drive:'Передний',city:'Кишинёв',registration:'Молдова',description:'GT Line',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:76,category:'car',brand:'Citroen',model:'C5 Aircross',year:2020,price:24000,currency:'$',mileage:32000,engine:'1.6 л',transmission:'Автомат',fuel:'Бензин',drive:'Передний',city:'Бельцы',registration:'Молдова',description:'Комфорт',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:77,category:'car',brand:'Seat',model:'Ateca',year:2019,price:22000,currency:'€',mileage:48000,engine:'1.5 л',transmission:'Робот',fuel:'Бензин',drive:'Передний',city:'Тирасполь',registration:'ПМР',description:'FR',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:78,category:'car',brand:'Haval',model:'Jolion',year:2022,price:25000,currency:'$',mileage:8000,engine:'1.5 л',transmission:'Робот',fuel:'Бензин',drive:'Передний',city:'Кишинёв',registration:'Молдова',description:'Новый, гарантия',photos:[],isTop:true,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:79,category:'car',brand:'BYD',model:'Tang',year:2023,price:48000,currency:'$',mileage:5000,engine:'Hybrid',transmission:'Автомат',fuel:'Гибрид',drive:'Полный',city:'Тирасполь',registration:'ПМР',description:'Plug-in hybrid, 7 мест',photos:[],isTop:true,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:80,category:'car',brand:'Geely',model:'Monjaro',year:2023,price:32000,currency:'$',mileage:3000,engine:'2.0 л',transmission:'Робот',fuel:'Бензин',drive:'Полный',city:'Бельцы',registration:'Молдова',description:'Flagship',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:81,category:'car',brand:'Chery',model:'Tiggo 8',year:2021,price:22000,currency:'$',mileage:35000,engine:'1.6 л',transmission:'Робот',fuel:'Бензин',drive:'Полный',city:'Рыбница',registration:'ПМР',description:'7 мест',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:82,category:'car',brand:'Lincoln',model:'Navigator',year:2020,price:72000,currency:'$',mileage:42000,engine:'3.5 л',transmission:'Автомат',fuel:'Бензин',drive:'Полный',city:'Кишинёв',registration:'Молдова',description:'Black Label, люкс',photos:[],isTop:true,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:83,category:'car',brand:'Cadillac',model:'Escalade',year:2021,price:88000,currency:'$',mileage:28000,engine:'6.2 л',transmission:'Автомат',fuel:'Бензин',drive:'Полный',city:'Тирасполь',registration:'ПМР',description:'Premium Luxury',photos:[],isTop:true,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:84,category:'car',brand:'Mini',model:'Cooper S Countryman',year:2019,price:24000,currency:'€',mileage:38000,engine:'2.0 л',transmission:'Автомат',fuel:'Бензин',drive:'Полный',city:'Кишинёв',registration:'Молдова',description:'ALL4',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:85,category:'truck',brand:'Kenworth',model:'T680',year:2019,price:95000,currency:'$',mileage:450000,engine:'15.0 л',transmission:'Автомат',fuel:'Дизель',drive:null,city:'Тирасполь',registration:'ПМР',description:'Американский тягач',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:86,category:'truck',brand:'Freightliner',model:'Cascadia',year:2020,price:105000,currency:'$',mileage:380000,engine:'14.8 л',transmission:'Автомат',fuel:'Дизель',drive:null,city:'Кишинёв',registration:'Молдова',description:'Sleeper cab',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:87,category:'truck',brand:'Hino',model:'500',year:2021,price:62000,currency:'$',mileage:120000,engine:'7.7 л',transmission:'Механика',fuel:'Дизель',drive:null,city:'Рыбница',registration:'ПМР',description:'Японское качество',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:88,category:'special',brand:'Bobcat',model:'S205',year:2020,price:42000,currency:'$',mileage:1200,engine:'2.4 л',transmission:'Гидростатика',fuel:'Дизель',drive:null,city:'Тирасполь',registration:'ПМР',description:'Минипогрузчик',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:89,category:'special',brand:'Case',model:'CX210',year:2019,price:115000,currency:'€',mileage:2800,engine:'6.7 л',transmission:'Гидравлика',fuel:'Дизель',drive:null,city:'Кишинёв',registration:'Молдова',description:'Экскаватор 21т',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:90,category:'special',brand:'John Deere',model:'310',year:2021,price:98000,currency:'$',mileage:1500,engine:'4.5 л',transmission:'Гидравлика',fuel:'Дизель',drive:null,city:'Бельцы',registration:'Молдова',description:'Погрузчик-экскаватор',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:91,category:'moto',brand:'Triumph',model:'Street Triple RS',year:2021,price:14500,currency:'€',mileage:8500,engine:'0.76 л',transmission:'Механика',fuel:'Бензин',drive:null,city:'Кишинёв',registration:'Молдова',description:'Naked',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:92,category:'moto',brand:'KTM',model:'1290 Super Duke R',year:2020,price:17000,currency:'€',mileage:12000,engine:'1.3 л',transmission:'Механика',fuel:'Бензин',drive:null,city:'Тирасполь',registration:'ПМР',description:'Beast mode',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:93,category:'moto',brand:'Aprilia',model:'RSV4',year:2021,price:18500,currency:'€',mileage:6500,engine:'1.1 л',transmission:'Механика',fuel:'Бензин',drive:null,city:'Бельцы',registration:'Молдова',description:'Factory',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:94,category:'moto',brand:'Indian',model:'Scout Bobber',year:2020,price:15500,currency:'$',mileage:9500,engine:'1.1 л',transmission:'Механика',fuel:'Бензин',drive:null,city:'Кишинёв',registration:'Молдова',description:'Cruiser',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:95,category:'water',brand:'Yamaha',model:'SuperJet',year:2022,price:11000,currency:'$',mileage:25,engine:'1.0 л',transmission:'Jet',fuel:'Бензин',drive:null,city:'Днестровск',registration:'ПМР',description:'Stand-up',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:96,category:'water',brand:'BRP',model:'Sea-Doo Spark Trixx',year:2021,price:8500,currency:'$',mileage:45,engine:'0.9 л',transmission:'Авто',fuel:'Бензин',drive:null,city:'Тирасполь',registration:'ПМР',description:'Fun',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:97,category:'water',brand:'Kawasaki',model:'Jet Ski SX-R',year:2020,price:12500,currency:'$',mileage:35,engine:'1.5 л',transmission:'Jet',fuel:'Бензин',drive:null,city:'Днестровск',registration:'ПМР',description:'Stand-up',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:98,category:'water',brand:'Yamaha',model:'VX Cruiser HO',year:2023,price:16500,currency:'$',mileage:10,engine:'1.8 л',transmission:'Авто',fuel:'Бензин',drive:null,city:'Кишинёв',registration:'Молдова',description:'Новый',photos:[],isTop:true,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()}
-,
-    // === КОМПЛЕКТУЮЩИЕ И ЗАПЧАСТИ ===
-    {id:99,category:'parts',partType:'Двигатель и навесное',brand:'BMW',model:'E46',condition:'Б/У рабочее',price:25000,currency:'$',city:'Кишинёв',registration:'Молдова',description:'Двигатель M54B25 2.5л, пробег 180 тыс.км, рабочий',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:100,category:'parts',partType:'КПП и сцепление',brand:'Mercedes',model:'W211',condition:'Восстановленное',price:15000,currency:'€',city:'Тирасполь',registration:'ПМР',description:'АКПП 722.6, восстановлена, гарантия 6 мес',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:101,category:'parts',partType:'Кузовные детали',brand:'Audi',model:'A4 B8',condition:'Новое',price:8000,currency:'$',city:'Бельцы',registration:'Молдова',description:'Капот оригинал, под покраску',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:102,category:'parts',partType:'Оптика',brand:'Toyota',model:'Camry XV70',condition:'Новое',price:12000,currency:'$',city:'Кишинёв',registration:'Молдова',description:'Фара левая LED оригинал',photos:[],isTop:true,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:103,category:'parts',partType:'Салон',brand:'Volkswagen',model:'Passat B7',condition:'Б/У рабочее',price:3500,currency:'€',city:'Тирасполь',registration:'ПМР',description:'Сиденья передние с подогревом, кожа',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:104,category:'parts',partType:'Подвеска и рулевое',brand:'Renault',model:'Logan',condition:'Новое',price:1200,currency:'$',city:'Рыбница',registration:'ПМР',description:'Стойки передние газомасляные комплект',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:105,category:'parts',partType:'Тормозная система',brand:'Ford',model:'Focus 3',condition:'Новое',price:2500,currency:'$',city:'Кишинёв',registration:'Молдова',description:'Тормозные диски передние вентилируемые + колодки',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:106,category:'parts',partType:'Электрика и датчики',brand:'Honda',model:'Accord',condition:'Б/У рабочее',price:1800,currency:'$',city:'Бельцы',registration:'Молдова',description:'Блок управления двигателем ECU, проверен',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:107,category:'parts',partType:'Шины и диски',brand:'Mercedes',model:'',condition:'Новое',price:18000,currency:'€',city:'Тирасполь',registration:'ПМР',description:'Диски R18 AMG оригинал + резина Michelin 225/40',photos:[],isTop:true,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:108,category:'parts',partType:'Аудио и мультимедия',brand:'Mazda',model:'CX-5',condition:'Б/У рабочее',price:5500,currency:'$',city:'Кишинёв',registration:'Молдова',description:'Магнитола штатная с навигацией',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:109,category:'parts',partType:'Двигатель и навесное',brand:'Volkswagen',model:'Golf 7',condition:'Новое',price:4500,currency:'€',city:'Бельцы',registration:'Молдова',description:'Турбина новая оригинал в упаковке',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:110,category:'parts',partType:'Кузовные детали',brand:'Hyundai',model:'Solaris',condition:'Б/У рабочее',price:1500,currency:'$',city:'Тирасполь',registration:'ПМР',description:'Бампер передний серый металлик',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:111,category:'parts',partType:'Оптика',brand:'Nissan',model:'Qashqai',condition:'Восстановленное',price:3200,currency:'$',city:'Рыбница',registration:'ПМР',description:'Фара правая, восстановлена полировка',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:112,category:'parts',partType:'КПП и сцепление',brand:'Skoda',model:'Octavia A7',condition:'Новое',price:8500,currency:'€',city:'Кишинёв',registration:'Молдова',description:'КПП DSG 6-ст. восстановленная с гарантией',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:113,category:'parts',partType:'Салон',brand:'BMW',model:'X5 E70',condition:'Б/У рабочее',price:6000,currency:'$',city:'Бельцы',registration:'Молдова',description:'Руль с подогревом и аирбегом',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:114,category:'parts',partType:'Электрика и датчики',brand:'Audi',model:'A6 C7',condition:'Новое',price:2200,currency:'€',city:'Тирасполь',registration:'ПМР',description:'Датчик массового расхода воздуха MAF оригинал',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()},
-    {id:115,category:'parts',partType:'Другое',brand:'Toyota',model:'',condition:'Новое',price:450,currency:'$',city:'Кишинёв',registration:'Молдова',description:'Чехлы на сиденья экокожа универсальные',photos:[],isTop:false,createdAt:randomDate(fifteenDaysAgo,now),userId:randomUser()}
-  ];
+  return [];
 }
