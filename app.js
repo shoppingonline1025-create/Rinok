@@ -10,6 +10,15 @@
 // ╚══════════════════════════════════════════╝
 const FIREBASE_URL = 'https://auto-market26-default-rtdb.europe-west1.firebasedatabase.app';
 
+// Нормализует Firebase array/object → всегда возвращает массив
+function normalizeFirebaseArray(val) {
+    if (!val) return [];
+    if (Array.isArray(val)) return val;
+    if (typeof val === 'object') return Object.values(val);
+    return [];
+}
+
+
 // Дополняем машины данными продавца из localStorage (для тестовых объявлений)
 function enrichCarsWithSellerInfo(carsArr) {
     const users = DB.getUsers();
@@ -1594,7 +1603,7 @@ function editListing(carId) {
 
 function navigate(page) {
     document.querySelectorAll('.nav-button').forEach(b => b.classList.remove('active'));
-    event?.target?.closest('.nav-button')?.classList.add('active');
+    try { event?.target?.closest('.nav-button')?.classList.add('active'); } catch(e) {}
 
     if (page === 'main') {
         closePage('addPage');
@@ -3022,37 +3031,35 @@ function chooseTempTopListing() {
     });
 }
 
+function _setText(id, val) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val;
+}
+
 function openProfile() {
     if (!currentUser) {
         tg.showAlert('Ошибка загрузки профиля');
         return;
     }
-    
-    // Всегда открываем на первой вкладке
-    switchProfileTab('main');
-    
-    // Аватарка с поддержкой фото
-    renderProfileAvatar();
-    
-    document.getElementById('profileName').textContent = currentUser.name || (currentUser.firstName + ' ' + currentUser.lastName).trim() || 'Пользователь';
-    document.getElementById('profileId').textContent = `ID: ${currentUser.telegramId}`;
-    
+
+    try { switchProfileTab('main'); } catch(e) { console.warn('switchProfileTab:', e.message); }
+    try { renderProfileAvatar(); } catch(e) { console.warn('renderProfileAvatar:', e.message); }
+
+    _setText('profileName', currentUser.name || (currentUser.firstName + ' ' + (currentUser.lastName || '')).trim() || 'Пользователь');
+    _setText('profileId', 'ID: ' + currentUser.telegramId);
+
     const myListings = cars.filter(c => String(c.userId) === String(currentUser.id));
-    document.getElementById('statListings').textContent = myListings.length;
-    document.getElementById('statViews').textContent = currentUser.views || 0;
-    document.getElementById('statRating').textContent = currentUser.ratingPoints || 0;
-    
-    // Обновляем баланс
-    updateBalanceDisplay();
-    
-    // Рейтинг — уровень и прогресс
-    renderRatingLevel();
-    
-    // Обновляем статус подписки автоподнятия
+    _setText('statListings', myListings.length);
+    _setText('statViews', currentUser.views || 0);
+    _setText('statRating', currentUser.ratingPoints || 0);
+
+    try { updateBalanceDisplay(); } catch(e) { console.warn('updateBalanceDisplay:', e.message); }
+    try { renderRatingLevel(); } catch(e) { console.warn('renderRatingLevel:', e.message); }
+
     const autoBoostStatus = document.getElementById('autoBoostStatus');
     if (autoBoostStatus) {
         const isActive = currentUser.subscriptions?.autoBoost?.active;
-        const carCount = currentUser.subscriptions?.autoBoost?.carIds?.length || 0;
+        const carCount = normalizeFirebaseArray(currentUser.subscriptions?.autoBoost?.carIds).length;
         if (isActive && carCount > 0) {
             autoBoostStatus.textContent = `Активна (${carCount} объявл.)`;
             autoBoostStatus.classList.add('active');
@@ -3061,19 +3068,17 @@ function openProfile() {
             autoBoostStatus.classList.remove('active');
         }
     }
-    
-    document.getElementById('profileNameField').textContent = currentUser.name || 'Не указано';
-    document.getElementById('profilePhoneField').textContent = currentUser.phone || 'Не указан';
-    document.getElementById('profileEmailField').textContent = currentUser.email || 'Не указан';
-    document.getElementById('profileCityField').textContent = currentUser.city || 'Не указан';
-    
-    const regDate = new Date(currentUser.registeredAt);
-    document.getElementById('profileRegDate').textContent = formatDate(regDate);
-    document.getElementById('profileTotalViews').textContent = currentUser.views || 0;
-    document.getElementById('profileAvgRating').textContent = currentUser.ratingPoints || 0;
-    
-    renderMyListings();
-    
+
+    _setText('profileNameField', currentUser.name || 'Не указано');
+    _setText('profilePhoneField', currentUser.phone || 'Не указан');
+    _setText('profileEmailField', currentUser.email || 'Не указан');
+    _setText('profileCityField', currentUser.city || 'Не указан');
+    _setText('profileRegDate', formatDate(new Date(currentUser.registeredAt)));
+    _setText('profileTotalViews', currentUser.views || 0);
+    _setText('profileAvgRating', currentUser.ratingPoints || 0);
+
+    try { renderMyListings(); } catch(e) { console.warn('renderMyListings:', e.message); }
+
     openPageWithLock('profilePage');
 }
 
