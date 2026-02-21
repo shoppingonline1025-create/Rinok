@@ -1,5 +1,5 @@
 // ============================================
-// AUTOMARKET v7.3 - CLOUDINARY INTEGRATION
+// AUTOMARKET v7.3.1 - BUGFIX FAVORITES & BOOST
 // Дата обновления: 2026-02-21
 // ============================================
 
@@ -1524,6 +1524,14 @@ function toggleFav(id) {
     else favorites.push(id);
     
     DB.saveFavorites(favorites);
+    
+    // ═══ БАГ-ФИКС: синхронизируем с Firebase ═══
+    if (currentUser) {
+        currentUser.favorites = [...favorites];
+        saveUser();
+    }
+    // ═══════════════════════════════════════════
+    
     updateFavBadge();
     
     // Обновляем страницу избранного если она открыта
@@ -1541,6 +1549,14 @@ function removeFromFav(id) {
     if (idx > -1) {
         favorites.splice(idx, 1);
         DB.saveFavorites(favorites);
+        
+        // ═══ БАГ-ФИКС: синхронизируем с Firebase ═══
+        if (currentUser) {
+            currentUser.favorites = [...favorites];
+            saveUser();
+        }
+        // ═══════════════════════════════════════════
+        
         updateFavBadge();
         renderFavorites();
     }
@@ -2494,12 +2510,17 @@ function getNextFreeBoostTime() {
 }
 
 function boostListing(carId, paid = false) {
+    // ═══ БАГ-ФИКС: приводим к числу для корректного сравнения ═══
+    carId = Number(carId);
+    // ═══════════════════════════════════════════════════════════
+    
     const car = cars.find(c => c.id === carId);
     if (!car) return;
     
     // Проверяем подписку автоподнятия
+    const autoBoostCarIds = normalizeFirebaseArray(currentUser.subscriptions?.autoBoost?.carIds).map(Number);
     const hasAutoBoost = currentUser.subscriptions?.autoBoost?.active && 
-                        currentUser.subscriptions.autoBoost.carIds.includes(carId);
+                        autoBoostCarIds.includes(carId);
     
     if (hasAutoBoost) {
         tg.showAlert('Это объявление уже поднимается автоматически 5 раз в день');
