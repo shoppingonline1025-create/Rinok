@@ -3346,12 +3346,46 @@ async function findTransferRecipient(telegramId) {
     const infoEl = document.getElementById('transferRecipientInfo');
     if (!infoEl) return;
     try {
-        const snap = await firebase.database()
+        // Firebase может хранить telegramId как число или строку — проверяем оба варианта
+        const numId = Number(telegramId);
+        const strId = String(telegramId);
+
+        let data = null;
+
+        // Попытка 1: как строка
+        const snap1 = await firebase.database()
             .ref('users')
             .orderByChild('telegramId')
-            .equalTo(String(telegramId))
+            .equalTo(strId)
             .once('value');
-        const data = snap.val();
+        data = snap1.val();
+
+        // Попытка 2: как число (если строка не нашла)
+        if (!data && !isNaN(numId)) {
+            const snap2 = await firebase.database()
+                .ref('users')
+                .orderByChild('telegramId')
+                .equalTo(numId)
+                .once('value');
+            data = snap2.val();
+        }
+
+        // Попытка 3: по ключу узла (userId === telegramId)
+        if (!data) {
+            const snap3 = await firebase.database()
+                .ref(`users/${numId}`)
+                .once('value');
+            const u = snap3.val();
+            if (u) data = { [numId]: u };
+        }
+        if (!data) {
+            const snap3b = await firebase.database()
+                .ref(`users/${strId}`)
+                .once('value');
+            const u = snap3b.val();
+            if (u) data = { [strId]: u };
+        }
+
         if (!data) {
             infoEl.textContent = '❌ Пользователь не найден';
             infoEl.className = 'admin-transfer-recipient-info error';
