@@ -247,6 +247,8 @@ async function syncUserFromFirebase(user) {
         streak:            fbUser.streak        ?? user.streak        ?? null,
         boost12hActivated: fbUser.boost12hActivated ?? user.boost12hActivated ?? null,
         tempTop:           fbUser.tempTop       ?? user.tempTop       ?? null,
+        viewsData:         fbUser.viewsData     ?? user.viewsData     ?? {},
+        favorites:         fbUser.favorites     ?? user.favorites     ?? [],
     };
     if (user.photo) merged.photo = user.photo;
     DB.saveUser(merged);
@@ -376,7 +378,7 @@ let currentGalleryIndex = {};
 let selectedBrand = '';
 let selectedModel = '';
 let cars = DB.getCars();
-let favorites = DB.getFavorites();
+let favorites = DB.getFavorites(); // будет перезаписан из Firebase после initUser
 let currentUser = null;
 let currentEditField = '';
 let formSelectedBrand = '';
@@ -2078,13 +2080,7 @@ async function initUser() {
 // ║  СИСТЕМА РЕЙТИНГА                        ║
 // ╚══════════════════════════════════════════╝
 
-const RATING_LEVELS = [
-    { level: 1, name: 'Новичок',   min: 0,    badge: '⚪', color: '#888' },
-    { level: 2, name: 'Участник',  min: 150,  badge: '🟢', color: '#4caf50' },
-    { level: 3, name: 'Надёжный',  min: 500,  badge: '🔵', color: '#2196f3' },
-    { level: 4, name: 'Опытный',   min: 1200, badge: '🟣', color: '#9c27b0' },
-    { level: 5, name: 'Эксперт',   min: 3000, badge: '🌟', color: '#ffc107' }
-];
+
 
 const RATING_POINTS = {
     LISTING_PUBLISHED:  10,  // опубликовал объявление
@@ -2098,17 +2094,6 @@ const RATING_POINTS = {
     STREAK_7_DAYS:      25,  // открыл приложение 7 дней подряд
     BALANCE_TOPUP:      10,  // пополнил баланс
 };
-
-// Получить уровень по очкам
-function getRatingLevel(points) {
-    const lvls = [...RATING_LEVELS].reverse();
-    return lvls.find(l => points >= l.min) || RATING_LEVELS[0];
-}
-
-// Следующий уровень
-function getNextLevel(points) {
-    return RATING_LEVELS.find(l => l.min > points) || null;
-}
 
 // Начислить очки рейтинга
 function awardPoints(reason, customPoints = null) {
@@ -2134,14 +2119,6 @@ function awardPoints(reason, customPoints = null) {
     DB.saveUser(currentUser);
     _debouncePushUser();
 
-    // Уведомить если сменился уровень
-    const prev = getRatingLevel(currentUser.ratingPoints - pts);
-    const curr = getRatingLevel(currentUser.ratingPoints);
-    if (curr.level > prev.level) {
-        setTimeout(() => {
-            tg.showAlert(`🎉 Новый уровень!\n${curr.badge} ${curr.name}\nОчков рейтинга: ${currentUser.ratingPoints}`);
-        }, 500);
-    }
 }
 
 // ─── Проверка и начисление за заполненный профиль ──────────────
@@ -2240,6 +2217,8 @@ function _debouncePushUser() {
 
 function saveUser() {
     if (!currentUser) return;
+    // Сохраняем favorites прямо в currentUser чтобы они попали в Firebase
+    currentUser.favorites = favorites || [];
     DB.saveUser(currentUser);
     pushUserToFirebase(currentUser); // синхронизируем с Firebase
 }
@@ -2348,12 +2327,10 @@ function openTopUp() {
 
 // Интервал бесплатного поднятия в зависимости от уровня и активации
 function getFreeBoostIntervalHours() {
-    const pts = currentUser.ratingPoints || 0;
-    const lvl = getRatingLevel(pts);
-    // 12ч если уровень 1+ И бонус активирован И не истёк
-    const boost12Active = currentUser.boost12hActivated && 
+    // 12ч если бонус куплен и не истёк, иначе 24ч
+    const boost12Active = currentUser.boost12hActivated &&
                           new Date(currentUser.boost12hActivated) > new Date();
-    return (lvl.level >= 1 && boost12Active) ? 12 : 24;
+    return boost12Active ? 12 : 24;
 }
 
 function canFreeBoost() {
@@ -2440,7 +2417,7 @@ function performBoost(car) {
 // Проверить, доступен ли временный Топ пользователю
 function canUseTempTop() {
     const pts = currentUser.ratingPoints || 0;
-    return getRatingLevel(pts).level >= 2;
+    return pts >= 200; // достаточно очков для покупки
 }
 
 // Активировать временный Топ для объявления (24ч)
@@ -2698,40 +2675,22 @@ function renderProfile() {
     renderMyListings();
 }
 
-// Рендер уровня, прогресс-бара и значка в профиле
+// Обновляем отображение очков и стрика в шапке профиля
 function renderRatingLevel() {
     const pts = currentUser.ratingPoints || 0;
-    const curr = getRatingLevel(pts);
-    const next = getNextLevel(pts);
-    
-    const badge = document.getElementById('ratingLevelBadge');
-    const name  = document.getElementById('ratingLevelName');
-    const ptsEl = document.getElementById('ratingLevelPts');
-    const fill  = document.getElementById('ratingProgressFill');
-    const label = document.getElementById('ratingProgressLabel');
-    const card  = document.getElementById('ratingLevelCard');
-    
-    if (!badge) return;
-    
-    badge.textContent = curr.badge;
-    name.textContent  = curr.name;
-    ptsEl.textContent = `${pts} очков`;
-    if (card) card.style.setProperty('--level-color', curr.color);
-    
-    if (next) {
-        const range  = next.min - curr.min;
-        const done   = pts - curr.min;
-        const pct    = Math.min(100, Math.round((done / range) * 100));
-        fill.style.width  = pct + '%';
-        label.textContent = `До уровня «${next.name}»: ещё ${next.min - pts} очков`;
-    } else {
-        fill.style.width  = '100%';
-        label.textContent = '🏆 Максимальный уровень достигнут!';
-    }
-    
-    // Обновляем счётчик в шапке карточек
+    const streak = currentUser.streak?.days || 0;
+
+    const valEl = document.getElementById('pointsBalanceValue');
+    if (valEl) valEl.textContent = pts;
+
+    const streakEl = document.getElementById('streakDaysDisplay');
+    if (streakEl) streakEl.textContent = streak;
+
     const avgEl = document.getElementById('profileAvgRating');
     if (avgEl) avgEl.textContent = pts;
+    
+    const statEl = document.getElementById('statRating');
+    if (statEl) statEl.textContent = pts;
 }
 
 // История начислений
@@ -2824,6 +2783,13 @@ function renderAchievements() {
     const container = document.getElementById('achievementsContainer');
     if (!container) return;
 
+    // Стрик
+    const streak = currentUser.streak || { days: 0, lastDate: '' };
+    const streakDays = streak.days || 0;
+    const streakLastDate = streak.lastDate || '—';
+    const today = getTodayStr();
+    const isStreakActiveToday = streak.lastDate === today;
+
     // Статус услуг
     const boost12hExpiresAt = currentUser.boost12hActivated || null;
     const boost12hActive    = boost12hExpiresAt && new Date(boost12hExpiresAt) > new Date();
@@ -2856,13 +2822,35 @@ function renderAchievements() {
         }
     ];
 
+    // Как заработать очки
+    const HOW_TO_EARN = [
+        { icon: '📝', text: 'Публикация объявления', pts: '+10' },
+        { icon: '👁', text: '50 просмотров объявления', pts: '+15' },
+        { icon: '📅', text: 'Объявление активно 2 недели', pts: '+15' },
+        { icon: '✅', text: 'Заполнить профиль полностью', pts: '+30' },
+        { icon: '📷', text: '6 фото при публикации', pts: '+10' },
+        { icon: '🎥', text: 'Добавить видео', pts: '+10' },
+        { icon: '⬆️', text: 'Поднять объявление', pts: '+5–15' },
+        { icon: '🔥', text: '7 дней подряд в приложении', pts: '+25' },
+        { icon: '💳', text: 'Пополнение баланса', pts: '+10' },
+    ];
+
     container.innerHTML = `
-        <div class="shop-balance-card">
-            <div class="shop-balance-label">Ваш баланс</div>
-            <div class="shop-balance-pts">${pts} <span class="shop-balance-unit">очков</span></div>
-            <div class="shop-balance-hint">Зарабатывайте очки за активность в приложении</div>
+        <div class="shop-section-title">🔥 Активность</div>
+        <div class="streak-card ${isStreakActiveToday ? 'streak-active' : ''}">
+            <div class="streak-main">
+                <div class="streak-flame">🔥</div>
+                <div class="streak-info">
+                    <div class="streak-count">${streakDays} <span class="streak-unit">дней подряд</span></div>
+                    <div class="streak-sub">${isStreakActiveToday ? '✅ Сегодня уже отмечено' : `Последний вход: ${streakLastDate}`}</div>
+                </div>
+            </div>
+            <div class="streak-milestone">
+                <div class="streak-milestone-text">До бонуса +25 очков: ещё ${7 - (streakDays % 7)} ${(7 - (streakDays % 7)) === 7 ? '(серия!✨)' : 'дн.'}</div>
+            </div>
         </div>
-        <div class="shop-section-title">🛒 Магазин услуг</div>
+
+        <div class="shop-section-title" style="margin-top:16px">🛒 Магазин услуг</div>
         ${SHOP_ITEMS.map(item => {
             const canAfford = pts >= item.cost;
             return `
@@ -2888,6 +2876,16 @@ function renderAchievements() {
                 </div>
             </div>`;
         }).join('')}
+
+        <div class="shop-section-title" style="margin-top:16px">💡 Как заработать очки</div>
+        <div class="earn-list">
+            ${HOW_TO_EARN.map(r => `
+            <div class="earn-item">
+                <span class="earn-icon">${r.icon}</span>
+                <span class="earn-text">${r.text}</span>
+                <span class="earn-pts">${r.pts}</span>
+            </div>`).join('')}
+        </div>
     `;
 }
 // Активировать режим 12ч поднятий на 3 суток
@@ -2996,8 +2994,8 @@ function buyTempTop() {
 // Выбрать объявление для tempTop
 function chooseTempTopListing() {
     const pts = currentUser.ratingPoints || 0;
-    if (getRatingLevel(pts).level < 2) {
-        tg.showAlert('Доступно с уровня 2 (500 очков)');
+    if (pts < 200) {
+        tg.showAlert('Недостаточно очков. Нужно минимум 200 очков.');
         return;
     }
     const myListings = cars.filter(c => String(c.userId) === String(currentUser.id));
@@ -3091,24 +3089,56 @@ function getTodayStr() {
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
-// Увеличить счётчик при открытии объявления
-function incrementView(carId) {
-    const key = getViewKey(carId);
-    const today = getTodayStr();
-    let data = JSON.parse(localStorage.getItem(key) || '{"today":0,"total":0,"date":""}');
-    // Сбрасываем "за сегодня" если новый день
-    if (data.date !== today) { data.today = 0; data.date = today; }
-    data.today++;
-    data.total++;
-    localStorage.setItem(key, JSON.stringify(data));
+// Debounce для сохранения viewsData в Firebase
+let _viewsSaveTimer = null;
+function _debounceSaveViews() {
+    if (_viewsSaveTimer) clearTimeout(_viewsSaveTimer);
+    _viewsSaveTimer = setTimeout(() => {
+        if (currentUser) saveUser();
+        _viewsSaveTimer = null;
+    }, 3000); // батчим запросы — сохраняем не чаще раза в 3 сек
 }
 
-// Получить счётчик для отображения
-function getViews(carId) {
-    const key = getViewKey(carId);
+// Увеличить счётчик при открытии объявления — пишем в Firebase через currentUser
+function incrementView(carId) {
     const today = getTodayStr();
-    let data = JSON.parse(localStorage.getItem(key) || '{"today":0,"total":0,"date":""}');
-    // Сбрасываем "за сегодня" если новый день (только при чтении)
+    const key = String(carId);
+
+    // Также обновляем localStorage как кеш для быстрого чтения
+    const lsKey = getViewKey(carId);
+    let lsData = JSON.parse(localStorage.getItem(lsKey) || '{"today":0,"total":0,"date":""}');
+    if (lsData.date !== today) { lsData.today = 0; lsData.date = today; }
+    lsData.today++;
+    lsData.total++;
+    localStorage.setItem(lsKey, JSON.stringify(lsData));
+
+    // Если объявление принадлежит текущему пользователю — сохраняем в Firebase
+    if (currentUser) {
+        if (!currentUser.viewsData) currentUser.viewsData = {};
+        const v = currentUser.viewsData[key] || { today: 0, total: 0, date: '' };
+        if (v.date !== today) { v.today = 0; v.date = today; }
+        v.today++;
+        v.total++;
+        currentUser.viewsData[key] = v;
+        _debounceSaveViews();
+    }
+}
+
+// Получить счётчик для отображения — сначала Firebase, fallback localStorage
+function getViews(carId) {
+    const today = getTodayStr();
+    const key = String(carId);
+
+    // Firebase данные (для объявлений текущего пользователя)
+    if (currentUser?.viewsData?.[key]) {
+        const v = { ...currentUser.viewsData[key] };
+        if (v.date !== today) { v.today = 0; }
+        return v;
+    }
+
+    // Fallback: localStorage
+    const lsKey = getViewKey(carId);
+    let data = JSON.parse(localStorage.getItem(lsKey) || '{"today":0,"total":0,"date":""}');
     if (data.date !== today) { data.today = 0; }
     return data;
 }
@@ -3507,6 +3537,17 @@ document.getElementById('searchInput').addEventListener('input', function(e) {
 
     // Убираем лоадер и показываем контент
     loadingEl.remove();
+
+    // Загружаем favorites из Firebase если есть
+    if (currentUser && Array.isArray(currentUser.favorites) && currentUser.favorites.length > 0) {
+        favorites = currentUser.favorites;
+        DB.saveFavorites(favorites);
+        updateFavBadge();
+    } else if (currentUser && favorites.length > 0 && !currentUser.favorites) {
+        // Миграция: если в localStorage есть, но в Firebase нет — сохраняем
+        currentUser.favorites = favorites;
+        saveUser();
+    }
 
     render();
     updateFavBadge();
