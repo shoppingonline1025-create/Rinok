@@ -3054,11 +3054,7 @@ function openProfile() {
     document.getElementById('profileTotalViews').textContent = currentUser.views || 0;
     document.getElementById('profileAvgRating').textContent = currentUser.ratingPoints || 0;
     
-    try {
-        renderMyListings();
-    } catch(e) {
-        console.error('renderMyListings error:', e);
-    }
+    renderMyListings();
     
     openPageWithLock('profilePage');
 }
