@@ -1,6 +1,6 @@
 // ============================================
-// AUTOMARKET v6.3 - FIREBASE + АВАТАР
-// Дата обновления: 2026-02-12
+// AUTOMARKET v7.3 - CLOUDINARY INTEGRATION
+// Дата обновления: 2026-02-21
 // ============================================
 
 // ╔══════════════════════════════════════════╗
@@ -16,6 +16,115 @@ const ADMIN_TELEGRAM_ID = 814278637; // Telegram ID администратора
 function isAdmin() {
     if (!currentUser) return false;
     return String(currentUser.telegramId) === String(ADMIN_TELEGRAM_ID);
+}
+
+
+// ╔══════════════════════════════════════════════════════════════╗
+// ║  CLOUDINARY — хранилище изображений                         ║
+// ║  Фото загружаются сюда, в Firebase хранятся только URL      ║
+// ╚══════════════════════════════════════════════════════════════╝
+const CLOUDINARY_CLOUD_NAME = 'dn1fjuedu';
+const CLOUDINARY_UPLOAD_PRESET = 'automarket_unsigned';
+
+/**
+ * Загрузка одного изображения в Cloudinary
+ * @param {string} base64Data - изображение в формате base64 или data URL
+ * @returns {Promise<string>} - URL загруженного изображения
+ */
+async function uploadToCloudinary(base64Data) {
+    const url = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
+    
+    const formData = new FormData();
+    formData.append('file', base64Data);
+    formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+    formData.append('folder', 'cars');
+    
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.secure_url) {
+            console.log('✅ Cloudinary upload:', data.secure_url);
+            return data.secure_url;
+        } else {
+            throw new Error(data.error?.message || 'Upload failed');
+        }
+    } catch (error) {
+        console.error('❌ Cloudinary upload error:', error);
+        throw error;
+    }
+}
+
+/**
+ * Загрузка массива изображений в Cloudinary
+ * @param {string[]} base64Photos - массив base64 изображений
+ * @param {function} onProgress - колбэк прогресса (index, total)
+ * @returns {Promise<string[]>} - массив URL
+ */
+async function uploadPhotosToCloudinary(base64Photos, onProgress) {
+    const urls = [];
+    const total = base64Photos.length;
+    
+    for (let i = 0; i < base64Photos.length; i++) {
+        const photo = base64Photos[i];
+        
+        // Если это уже URL (не base64) — пропускаем загрузку
+        if (photo.startsWith('http://') || photo.startsWith('https://')) {
+            urls.push(photo);
+            if (onProgress) onProgress(i + 1, total);
+            continue;
+        }
+        
+        try {
+            if (onProgress) onProgress(i + 1, total);
+            const cloudinaryUrl = await uploadToCloudinary(photo);
+            urls.push(cloudinaryUrl);
+        } catch (e) {
+            console.error(`Failed to upload photo ${i + 1}:`, e);
+            // Не прерываем загрузку остальных фото
+            // Можно вернуть base64 как fallback, но лучше пропустить
+        }
+    }
+    
+    return urls;
+}
+
+/**
+ * Оптимизация URL Cloudinary — добавляет трансформации
+ * @param {string} url - оригинальный URL
+ * @param {number} width - желаемая ширина (по умолчанию 400)
+ * @returns {string} - оптимизированный URL
+ */
+function getOptimizedImageUrl(url, width = 400) {
+    // Только для Cloudinary URL
+    if (!url || !url.includes('cloudinary.com')) {
+        return url;
+    }
+    // Вставляем трансформации после /upload/
+    // f_auto = автоформат (webp/avif), q_auto = автокачество, w_X = ширина
+    return url.replace('/upload/', `/upload/f_auto,q_auto,w_${width}/`);
+}
+
+/**
+ * URL для миниатюры (карточка объявления)
+ */
+function getThumbUrl(url) {
+    return getOptimizedImageUrl(url, 400);
+}
+
+/**
+ * URL для полноразмерного просмотра
+ */
+function getFullUrl(url) {
+    return getOptimizedImageUrl(url, 1200);
 }
 
 
@@ -1747,7 +1856,7 @@ function removeVideo() {
     document.getElementById('videoPreview').innerHTML = '';
 }
 
-function handleSubmit(e) {
+async function handleSubmit(e) {
     e.preventDefault();
 
     // Блокируем кнопку немедленно — защита от двойного нажатия
@@ -1844,6 +1953,33 @@ function handleSubmit(e) {
         }
     }
     
+    // ═══════════════════════════════════════════════════════════
+    // ЗАГРУЗКА ФОТО В CLOUDINARY
+    // ═══════════════════════════════════════════════════════════
+    let cloudinaryPhotos = [];
+    
+    if (uploadedPhotos.length > 0) {
+        try {
+            submitBtn.textContent = '📤 Загрузка фото...';
+            
+            cloudinaryPhotos = await uploadPhotosToCloudinary(uploadedPhotos, (current, total) => {
+                submitBtn.textContent = `📤 Фото ${current}/${total}...`;
+            });
+            
+            if (cloudinaryPhotos.length === 0 && uploadedPhotos.length > 0) {
+                throw new Error('Не удалось загрузить фото');
+            }
+            
+            submitBtn.textContent = '⏳ Сохранение...';
+        } catch (e) {
+            console.error('Cloudinary upload failed:', e);
+            tg.showAlert('Ошибка загрузки фото. Проверьте интернет и попробуйте ещё раз.');
+            unblockSubmit();
+            return;
+        }
+    }
+    // ═══════════════════════════════════════════════════════════
+    
     const carData = {
         category,
         brand: brandValue,
@@ -1854,7 +1990,7 @@ function handleSubmit(e) {
         // Регистрация только для транспорта, не для запчастей
         ...(category !== 'parts' ? { registration: document.getElementById('registration').value } : {}),
         description: document.getElementById('description').value,
-        photos: [...uploadedPhotos],
+        photos: cloudinaryPhotos, // ← URL из Cloudinary вместо base64
         video: uploadedVideo,
         userId: currentUser.id,
         // Для запчастей добавляем partType, condition и заголовок
