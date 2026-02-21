@@ -10,6 +10,15 @@
 // ╚══════════════════════════════════════════╝
 const FIREBASE_URL = 'https://auto-market26-default-rtdb.europe-west1.firebasedatabase.app';
 
+// ─── Администратор ────────────────────────────────────────────
+const ADMIN_TELEGRAM_ID = 814278637; // Telegram ID администратора
+
+function isAdmin() {
+    if (!currentUser) return false;
+    return String(currentUser.telegramId) === String(ADMIN_TELEGRAM_ID);
+}
+
+
 // Нормализует Firebase array/object → всегда возвращает массив
 function normalizeFirebaseArray(val) {
     if (!val) return [];
@@ -2886,7 +2895,13 @@ function renderAchievements() {
                 <span class="earn-pts">${r.pts}</span>
             </div>`).join('')}
         </div>
+        ${isAdmin() ? `
+        <div class="shop-section-title" style="margin-top:16px">📋 История переводов</div>
+        <div id="adminTransferHistory" class="admin-transfer-history"></div>
+        ` : ''}
     `;
+
+    if (isAdmin()) renderAdminTransferHistory();
 }
 // Активировать режим 12ч поднятий на 3 суток
 function activate12hBoost() { buyBoost12h(); }
@@ -3076,6 +3091,12 @@ function openProfile() {
     _setText('profileAvgRating', currentUser.ratingPoints || 0);
 
     try { renderMyListings(); } catch(e) { console.warn('renderMyListings:', e.message); }
+
+    // Показываем кнопку "Перевести" только администратору
+    const transferBtn = document.getElementById('adminTransferBtn');
+    if (transferBtn) {
+        transferBtn.style.display = isAdmin() ? 'inline-flex' : 'none';
+    }
 
     openPageWithLock('profilePage');
 }
@@ -3280,6 +3301,184 @@ function closeEditModal() {
 function topUpBalance() {
     tg.showAlert('Функция в разработке');
 }
+
+// ─── Админ: перевод баланса другому пользователю ──────────────
+
+let _transferSearchTimer = null;
+
+function openAdminTransfer() {
+    if (!isAdmin()) {
+        tg.showAlert('Доступ запрещён');
+        return;
+    }
+    // Сбрасываем поля
+    const ridEl = document.getElementById('transferRecipientId');
+    const amtEl = document.getElementById('transferAmount');
+    const cmtEl = document.getElementById('transferComment');
+    const infoEl = document.getElementById('transferRecipientInfo');
+    const errEl = document.getElementById('transferError');
+    if (ridEl) ridEl.value = '';
+    if (amtEl) amtEl.value = '';
+    if (cmtEl) cmtEl.value = '';
+    if (infoEl) { infoEl.textContent = ''; infoEl.className = 'admin-transfer-recipient-info'; }
+    if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
+
+    document.getElementById('adminTransferModal').style.display = 'flex';
+
+    // Поиск пользователя при вводе ID
+    if (ridEl) {
+        ridEl.oninput = function() {
+            clearTimeout(_transferSearchTimer);
+            const val = this.value.trim();
+            if (infoEl) { infoEl.textContent = ''; infoEl.className = 'admin-transfer-recipient-info'; }
+            if (!val || val.length < 5) return;
+            infoEl.textContent = '🔍 Поиск...';
+            _transferSearchTimer = setTimeout(() => findTransferRecipient(val), 600);
+        };
+    }
+}
+
+function closeAdminTransfer() {
+    document.getElementById('adminTransferModal').style.display = 'none';
+}
+
+async function findTransferRecipient(telegramId) {
+    const infoEl = document.getElementById('transferRecipientInfo');
+    if (!infoEl) return;
+    try {
+        const snap = await firebase.database()
+            .ref('users')
+            .orderByChild('telegramId')
+            .equalTo(String(telegramId))
+            .once('value');
+        const data = snap.val();
+        if (!data) {
+            infoEl.textContent = '❌ Пользователь не найден';
+            infoEl.className = 'admin-transfer-recipient-info error';
+            return;
+        }
+        const user = Object.values(data)[0];
+        const name = user.name || ((user.firstName || '') + ' ' + (user.lastName || '')).trim() || 'Без имени';
+        infoEl.innerHTML = `✅ <b>${name}</b> · Баланс: ${user.balance || 0} лей`;
+        infoEl.className = 'admin-transfer-recipient-info success';
+        infoEl.dataset.userId = Object.keys(data)[0];
+        infoEl.dataset.userName = name;
+    } catch(e) {
+        infoEl.textContent = '⚠️ Ошибка поиска: ' + e.message;
+        infoEl.className = 'admin-transfer-recipient-info error';
+    }
+}
+
+async function confirmAdminTransfer() {
+    if (!isAdmin()) { tg.showAlert('Доступ запрещён'); return; }
+
+    const ridEl   = document.getElementById('transferRecipientId');
+    const amtEl   = document.getElementById('transferAmount');
+    const cmtEl   = document.getElementById('transferComment');
+    const infoEl  = document.getElementById('transferRecipientInfo');
+    const errEl   = document.getElementById('transferError');
+    const btn     = document.getElementById('transferConfirmBtn');
+
+    const telegramId = (ridEl?.value || '').trim();
+    const amount     = parseInt(amtEl?.value || '0');
+    const comment    = (cmtEl?.value || '').trim();
+
+    // Валидация
+    function showErr(msg) {
+        if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; }
+    }
+    if (errEl) errEl.style.display = 'none';
+
+    if (!telegramId) { showErr('Введите Telegram ID получателя'); return; }
+    if (String(telegramId) === String(ADMIN_TELEGRAM_ID)) { showErr('Нельзя переводить самому себе'); return; }
+    if (!amount || amount < 1) { showErr('Введите сумму больше 0'); return; }
+    if (!infoEl?.dataset?.userId) { showErr('Сначала дождитесь поиска пользователя'); return; }
+
+    const recipientKey  = infoEl.dataset.userId;
+    const recipientName = infoEl.dataset.userName || 'Пользователь';
+
+    // Блокируем кнопку
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Отправка...'; }
+
+    try {
+        // Загружаем актуальные данные получателя из Firebase
+        const snap = await firebase.database().ref(`users/${recipientKey}`).once('value');
+        const recipient = snap.val();
+        if (!recipient) throw new Error('Пользователь не найден в базе');
+
+        const newBalance = (recipient.balance || 0) + amount;
+
+        // Запись транзакции получателя
+        const recipientTx = {
+            type: 'deposit',
+            amount,
+            method: 'admin_transfer',
+            comment: comment || 'Перевод от администратора',
+            from: 'admin',
+            date: new Date().toISOString()
+        };
+        const recipientTxs = Array.isArray(recipient.transactions)
+            ? [recipientTx, ...recipient.transactions].slice(0, 100)
+            : [recipientTx];
+
+        // Обновляем баланс получателя в Firebase
+        await firebase.database().ref(`users/${recipientKey}`).update({
+            balance: newBalance,
+            transactions: recipientTxs
+        });
+
+        // Сохраняем запись о переводе в историю admin'а
+        if (!currentUser.adminTransfers) currentUser.adminTransfers = [];
+        currentUser.adminTransfers.unshift({
+            recipientTelegramId: telegramId,
+            recipientName,
+            amount,
+            comment: comment || '',
+            date: new Date().toISOString()
+        });
+        currentUser.adminTransfers = currentUser.adminTransfers.slice(0, 100);
+        saveUser();
+
+        closeAdminTransfer();
+        tg.showAlert(`✅ Перевод выполнен!
+${recipientName} получил ${amount} лей.
+Новый баланс: ${newBalance} лей`);
+
+    } catch(e) {
+        showErr('Ошибка: ' + e.message);
+        console.error('Transfer error:', e);
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Перевести'; }
+    }
+}
+
+// Показать историю переводов (для админа в разделе достижений)
+function renderAdminTransferHistory() {
+    const container = document.getElementById('adminTransferHistory');
+    if (!container) return;
+    if (!isAdmin()) { container.style.display = 'none'; return; }
+
+    const transfers = currentUser.adminTransfers || [];
+    if (transfers.length === 0) {
+        container.innerHTML = '<div class="admin-history-empty">Переводов ещё не было</div>';
+        return;
+    }
+    container.innerHTML = transfers.map(t => {
+        const date = new Date(t.date).toLocaleString('ru-RU', {day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit'});
+        return `<div class="admin-history-item">
+            <div class="admin-history-main">
+                <span class="admin-history-name">${t.recipientName}</span>
+                <span class="admin-history-amount">+${t.amount} лей</span>
+            </div>
+            <div class="admin-history-meta">
+                ${t.comment ? `<span class="admin-history-comment">${t.comment}</span> · ` : ''}
+                <span class="admin-history-date">${date}</span>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+
 
 function withdrawBalance() {
     if (currentUser.balance <= 0) {
