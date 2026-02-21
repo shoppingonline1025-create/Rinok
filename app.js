@@ -2792,8 +2792,14 @@ function renderProfileAvatar() {
 
 // ─── Вкладки профиля ──────────────────────────────────────────
 function switchProfileTab(tab) {
+    // Явные ID — совместимо и с tabAch и с tabAchievements в HTML
+    const tabIds = {
+        main:         'tabMain',
+        achievements: document.getElementById('tabAchievements') ? 'tabAchievements' : 'tabAch',
+        listings:     'tabListings'
+    };
     ['main', 'achievements', 'listings'].forEach(t => {
-        const btn = document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1));
+        const btn = document.getElementById(tabIds[t]);
         const content = document.getElementById('tabContent' + t.charAt(0).toUpperCase() + t.slice(1));
         const isActive = t === tab;
         if (btn) btn.classList.toggle('active', isActive);
