@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<!-- AutoMarket v7.4 - Extended Models & Fuel Types -->
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>АвтоМаркет v7.4</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="format-detection" content="telephone=no">
+<link rel="stylesheet" href="styles.css?v=7.4">
+<!-- Firebase SDK (compat версия — работает без npm/bundler) -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+</head>
+<body>
+<header class="header">
+<span class="header-icon">🚗</span>
+<h1 class="header-title">АвтоМаркет</h1>
+<div id="syncStatus" class="sync-status" onclick="manualSync()" title="Статус синхронизации">⏳</div>
+</header>
+<main class="main-content" id="mainPage">
+<div class="search-box">
+<span class="search-icon">🔍</span>
+<input type="text" id="searchInput" class="search-input" placeholder="Марка, модель...">
+</div>
+<div class="categories-scroll">
+<button class="category-chip active" data-category="all" onclick="selectCategory('all')">Все</button>
+<button class="category-chip" data-category="car" onclick="selectCategory('car')">🚗 Легковые</button>
+<button class="category-chip" data-category="truck" onclick="selectCategory('truck')">🚚 Грузовые</button>
+<button class="category-chip" data-category="parts" onclick="selectCategory('parts')">🔧 Запчасти</button>
+<button class="category-chip" data-category="special" onclick="selectCategory('special')">🚜 Спецтехника</button>
+<button class="category-chip" data-category="moto" onclick="selectCategory('moto')">🏍 Мототехника</button>
+<button class="category-chip" data-category="water" onclick="selectCategory('water')">🚤 Водный</button>
+</div>
+<div class="filters-scroll">
+<button class="filter-chip active" onclick="resetFilters()">Сбросить все</button>
+<button class="filter-chip" id="brandFilter" onclick="openModal('brandModal')">Марка</button>
+<button class="filter-chip" id="modelFilter" onclick="openModal('modelModal')">Модель</button>
+<button class="filter-chip" id="priceFilter" onclick="openModal('priceModal')">Цена</button>
+<button class="filter-chip" id="yearFilter" onclick="openModal('yearModal')">Год</button>
+<button class="filter-chip" id="mileageFilter" onclick="openModal('mileageModal')">Пробег</button>
+<button class="filter-chip" id="driveFilter" onclick="openModal('driveModal')">Привод</button>
+<button class="filter-chip" id="cityFilter" onclick="openModal('cityModal')">Город</button>
+<button class="filter-chip" id="regFilter" onclick="openModal('regModal')">Регистрация</button>
+</div>
+<div class="section-header">
+<div class="section-title-text">🔥 Топ объявления <span class="section-count" id="topCount"></span></div>
+<button class="section-all-btn" id="topAllBtn" onclick="toggleTopAll()">Все ›</button>
+</div>
+<div id="topListings" class="listings-scroll"></div>
+<div id="topAllExpanded" style="display:none;"></div>
+
+<div class="section-header">
+<div class="section-title-text">✨ Новые поступления <span class="section-count" id="newCount"></span></div>
+<button class="section-all-btn" id="newAllBtn" onclick="toggleNewAll()">Все ›</button>
+</div>
+<div id="newListings" class="listings-scroll"></div>
+<div id="newAllExpanded" style="display:none;"></div>
+
+<div class="section-header">
+<div class="section-title-text">📋 Все объявления <span class="section-count" id="allCount"></span></div>
+<button class="section-all-btn" id="allAllBtn" onclick="toggleAllAll()">Все ›</button>
+</div>
+<div id="allListings" class="listings-scroll"></div>
+<div id="allAllExpanded" style="display:none;"></div>
+</main>
+
+<div id="brandModal" class="modal">
+<div class="modal-content">
+<h3>Выберите марку</h3>
+<div class="brand-list" id="brandList"></div>
+<div class="modal-buttons">
+<button class="btn-secondary" onclick="closeModal('brandModal')">Отмена</button>
+<button class="btn-primary" onclick="applyBrand()">Применить</button>
+</div>
+</div>
+</div>
+
+<div id="modelModal" class="modal">
+<div class="modal-content">
+<h3>Выберите модель</h3>
+<div class="brand-list" id="modelList"></div>
+<div class="modal-buttons">
+<button class="btn-secondary" onclick="closeModal('modelModal')">Отмена</button>
+<button class="btn-primary" onclick="applyModel()">Применить</button>
+</div>
+</div>
+</div>
+
+<div id="priceModal" class="modal">
+<div class="modal-content">
+<h3>Цена</h3>
+<div class="currency-selector">
+<button class="currency-btn active" onclick="setCurrency('$')">$ USD</button>
+<button class="currency-btn" onclick="setCurrency('€')">€ EUR</button>
+<button class="currency-btn" onclick="setCurrency('₽')">₽ RUB</button>
+</div>
+<div class="range-inputs">
+<input type="number" id="priceFrom" placeholder="От">
+<span>—</span>
+<input type="number" id="priceTo" placeholder="До">
+</div>
+<div class="modal-buttons">
+<button class="btn-secondary" onclick="closeModal('priceModal')">Отмена</button>
+<button class="btn-primary" onclick="applyPrice()">Применить</button>
+</div>
+</div>
+</div>
+
+<div id="yearModal" class="modal">
+<div class="modal-content">
+<h3>Год выпуска</h3>
+<div class="range-inputs">
+<input type="number" id="yearFrom" placeholder="От" min="1990" max="2025">
+<span>—</span>
+<input type="number" id="yearTo" placeholder="До" min="1990" max="2025">
+</div>
+<div class="modal-buttons">
+<button class="btn-secondary" onclick="closeModal('yearModal')">Отмена</button>
+<button class="btn-primary" onclick="applyYear()">Применить</button>
+</div>
+</div>
+</div>
+
+<div id="mileageModal" class="modal">
+<div class="modal-content">
+<h3>Пробег (км)</h3>
+<div class="range-inputs">
+<input type="number" id="mileageFrom" placeholder="От">
+<span>—</span>
+<input type="number" id="mileageTo" placeholder="До">
+</div>
+<div class="modal-buttons">
+<button class="btn-secondary" onclick="closeModal('mileageModal')">Отмена</button>
+<button class="btn-primary" onclick="applyMileage()">Применить</button>
+</div>
+</div>
+</div>
+
+<div id="cityModal" class="modal">
+<div class="modal-content">
+<h3>Город</h3>
+<select id="citySelect">
+<option value="">Все города</option>
+<optgroup label="ПМР">
+<option value="Тирасполь">Тирасполь</option>
+<option value="Рыбница">Рыбница</option>
+<option value="Дубоссары">Дубоссары</option>
+<option value="Каменка">Каменка</option>
+<option value="Григориополь">Григориополь</option>
+<option value="Слободзея">Слободзея</option>
+<option value="Днестровск">Днестровск</option>
+</optgroup>
+<optgroup label="Молдова">
+<option value="Кишинёв">Кишинёв</option>
+<option value="Бельцы">Бельцы</option>
+<option value="Бендеры">Бендеры</option>
+<option value="Кагул">Кагул</option>
+<option value="Унгены">Унгены</option>
+</optgroup>
+</select>
+<div class="modal-buttons">
+<button class="btn-secondary" onclick="closeModal('cityModal')">Отмена</button>
+<button class="btn-primary" onclick="applyCity()">Применить</button>
+</div>
+</div>
+</div>
+
+<div id="regModal" class="modal">
+<div class="modal-content">
+<h3>Регистрация</h3>
+<select id="regSelect">
+<option value="">Все</option>
+<option value="ПМР">ПМР</option>
+<option value="Молдова">Молдова</option>
+<option value="Другая">Другая</option>
+</select>
+<div class="modal-buttons">
+<button class="btn-secondary" onclick="closeModal('regModal')">Отмена</button>
+<button class="btn-primary" onclick="applyReg()">Применить</button>
+</div>
+</div>
+</div>
+
+<div id="driveModal" class="modal">
+<div class="modal-content">
+<h3>Привод</h3>
+<div style="display:flex;flex-direction:column;gap:12px;">
+<label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+<input type="radio" name="drive" value="Передний" style="width:18px;height:18px;">
+<span>Передний</span>
+</label>
+<label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+<input type="radio" name="drive" value="Задний" style="width:18px;height:18px;">
+<span>Задний</span>
+</label>
+<label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+<input type="radio" name="drive" value="Полный" style="width:18px;height:18px;">
+<span>Полный</span>
+</label>
+</div>
+<div class="modal-buttons">
+<button class="btn-secondary" onclick="closeModal('driveModal')">Отмена</button>
+<button class="btn-primary" onclick="applyDrive()">Применить</button>
+</div>
+</div>
+</div>
+
+<div id="formBrandModal" class="form-select-modal">
+<div class="form-select-content">
+<h3>Выберите марку</h3>
+<div class="form-brand-grid" id="formBrandGrid"></div>
+<div class="modal-buttons">
+<button class="btn-secondary" onclick="closeFormBrandModal()">Отмена</button>
+<button class="btn-primary" onclick="confirmFormBrand()">Применить</button>
+</div>
+</div>
+</div>
+
+<div id="formModelModal" class="form-select-modal">
+<div class="form-select-content">
+<h3>Выберите модель</h3>
+<div class="form-brand-grid" id="formModelGrid"></div>
+<div class="modal-buttons">
+<button class="btn-secondary" onclick="closeFormModelModal()">Отмена</button>
+<button class="btn-primary" onclick="confirmFormModel()">Применить</button>
+</div>
+</div>
+</div>
+
+<!-- Модал выбора варианта/комплектации -->
+<div id="formVariantModal" class="form-select-modal">
+<div class="form-select-content">
+<h3>Выберите комплектацию</h3>
+<div class="form-brand-grid" id="formVariantGrid"></div>
+<div class="modal-buttons">
+<button class="btn-secondary" onclick="closeFormVariantModal()">Отмена</button>
+<button class="btn-primary" onclick="confirmFormVariant()">Применить</button>
+</div>
+</div>
+</div>
+
+<div id="addPage" class="add-page">
+<div class="detail-header">
+<button class="back-button" onclick="closePage('addPage')">← Назад</button>
+</div>
+<div class="add-content">
+<h2 class="add-title">➕ Подать объявление</h2>
+<form id="addForm" class="add-form" onsubmit="handleSubmit(event)">
+<div class="form-group">
+<label>Категория транспорта</label>
+<select id="category" onchange="updateFormBrandOptions()" required>
+<option value="">Выберите</option>
+<option value="car">🚗 Легковой</option>
+<option value="truck">🚚 Грузовой</option>
+<option value="parts">🔧 Комплектующие</option>
+<option value="special">🚜 Спецтехника</option>
+<option value="moto">🏍 Мототехника</option>
+<option value="water">🚤 Водный</option>
+</select>
+</div>
+
+<!-- Поля для запчастей (показываются только когда category=parts) -->
+<div class="form-group" id="partTypeGroup" style="display:none">
+<label>Тип детали <span style="color:#e8264e">*</span></label>
+<div style="position:relative">
+<input type="text" id="partTypeInput" placeholder="Выберите тип детали" readonly onclick="openPartTypeModal()" style="cursor:pointer">
+<input type="hidden" id="partType">
+</div>
+</div>
+
+<div class="form-group" id="conditionGroup" style="display:none">
+<label>Состояние <span style="color:#e8264e">*</span></label>
+<select id="condition">
+<option value="">Выберите</option>
+</select>
+</div>
+
+<div class="form-group" id="partTitleGroup" style="display:none">
+<label>Заголовок объявления <span style="color:#e8264e">*</span></label>
+<input type="text" id="partTitle" placeholder="Например: КПП от Audi A6 C5, 5-ст механика" maxlength="80">
+<div class="phone-hint">Отображается в карточке объявления — опишите кратко что продаёте</div>
+</div>
+
+<div class="form-group">
+<label>Марка</label>
+<div style="position:relative">
+<input type="text" id="formBrandInput" placeholder="Выберите марку" readonly onclick="openFormBrandModal()" required style="cursor:pointer">
+<input type="hidden" id="formBrand">
+</div>
+</div>
+<div class="form-group">
+<label>Модель</label>
+<div style="position:relative">
+<input type="text" id="formModelInput" placeholder="Сначала выберите марку" readonly onclick="openFormModelModal()" required style="cursor:pointer">
+<input type="hidden" id="formModel">
+</div>
+</div>
+<div class="form-group">
+<label>Год</label>
+<input type="number" id="year" placeholder="2020" min="1990" max="2025" required>
+</div>
+<div class="form-group">
+<label>Валюта</label>
+<select id="currency" required>
+<option value="$">Доллар ($)</option>
+<option value="€">Евро (€)</option>
+<option value="₽">Рубль (₽)</option>
+</select>
+</div>
+<div class="form-group">
+<label>Цена</label>
+<input type="number" id="price" placeholder="25000" required>
+</div>
+<div class="form-group">
+<label>Пробег (км)</label>
+<input type="number" id="mileage" placeholder="45000" required>
+</div>
+<div class="form-group">
+<label>Двигатель</label>
+<input type="text" id="engine" placeholder="2.5" pattern="[0-9.]+" title="Только цифры и точка" required>
+</div>
+<div class="form-group">
+<label>Коробка</label>
+<select id="transmission" required>
+<option value="">Выберите</option>
+<option value="Автомат">Автомат</option>
+<option value="Механика">Механика</option>
+<option value="Робот">Робот</option>
+<option value="Вариатор">Вариатор</option>
+</select>
+</div>
+<div class="form-group">
+<label>Топливо</label>
+<select id="fuel" required>
+<option value="">Выберите</option>
+<option value="Бензин">Бензин</option>
+<option value="Дизель">Дизель</option>
+<option value="Газ (метан)">Газ (метан)</option>
+<option value="Газ (пропан)">Газ (пропан)</option>
+<option value="Бензин + газ">Бензин + газ</option>
+<option value="Гибрид">Гибрид</option>
+<option value="Гибрид + газ">Гибрид + газ</option>
+<option value="Электро">Электро</option>
+<option value="Plug-in гибрид">Plug-in гибрид</option>
+</select>
+</div>
+<div class="form-group">
+<label>Привод</label>
+<select id="drive">
+<option value="">Не указан</option>
+<option value="Передний">Передний</option>
+<option value="Задний">Задний</option>
+<option value="Полный">Полный</option>
+</select>
+</div>
+<div class="form-group">
+<label>Регистрация</label>
+<select id="registration" required>
+<option value="">Выберите</option>
+<option value="ПМР">ПМР</option>
+<option value="Молдова">Молдова</option>
+<option value="Другая">Другая</option>
+</select>
+</div>
+<div class="form-group">
+<label>Город</label>
+<select id="city" required>
+<option value="">Выберите</option>
+<optgroup label="ПМР">
+<option value="Тирасполь">Тирасполь</option>
+<option value="Рыбница">Рыбница</option>
+<option value="Дубоссары">Дубоссары</option>
+<option value="Каменка">Каменка</option>
+<option value="Григориополь">Григориополь</option>
+<option value="Слободзея">Слободзея</option>
+<option value="Днестровск">Днестровск</option>
+</optgroup>
+<optgroup label="Молдова">
+<option value="Кишинёв">Кишинёв</option>
+<option value="Бельцы">Бельцы</option>
+<option value="Бендеры">Бендеры</option>
+<option value="Кагул">Кагул</option>
+<option value="Унгены">Унгены</option>
+</optgroup>
+</select>
+</div>
+<div class="form-group">
+<label>Фото (до 6)</label>
+<div class="file-upload">
+<label for="photos" class="file-upload-btn">📷 Фото</label>
+<input type="file" id="photos" accept="image/*" multiple onchange="handlePhotos(event)">
+<div id="photoPreview" class="file-preview"></div>
+</div>
+</div>
+<div class="form-group">
+<label>Видео (1)</label>
+<div class="file-upload">
+<label for="video" class="file-upload-btn">🎥 Видео</label>
+<input type="file" id="video" accept="video/*" onchange="handleVideo(event)">
+<div id="videoPreview" class="file-preview"></div>
+</div>
+</div>
+<div class="form-group">
+<label>Описание</label>
+<textarea id="description" placeholder="Расскажите о состоянии..." rows="4" required></textarea>
+</div>
+<div class="form-group">
+<label>Номер телефона <span style="color:#e8264e">*</span></label>
+<div style="position:relative">
+<span class="phone-prefix">📞</span>
+<input type="tel" id="listingPhone" class="phone-input-field"
+    placeholder="+373 777 00 000"
+    required
+    inputmode="tel">
+</div>
+<div class="phone-hint">Покупатели будут писать вам в Telegram по этому номеру</div>
+</div>
+<button type="submit" class="submit-btn">Опубликовать</button>
+</form>
+</div>
+</div>
+
+<div id="favoritesPage" class="fav-page">
+<div class="fav-page-header">
+<button class="back-button fav-back-btn" onclick="closePage('favoritesPage')">← Назад</button>
+<div class="fav-page-title-wrap">
+<div class="fav-page-icon">❤️</div>
+<div class="fav-page-title">Избранное</div>
+<div class="fav-page-subtitle" id="favPageSubtitle">0 объявлений</div>
+</div>
+</div>
+<div id="favoritesContent" class="fav-content"></div>
+</div>
+
+<div id="detailPage" class="detail-page">
+<div class="detail-header">
+<button class="back-button" onclick="closePage('detailPage')">← Назад</button>
+</div>
+<div id="detailContent"></div>
+</div>
+
+<div id="profilePage" class="profile-page">
+<div class="detail-header">
+<button class="back-button" onclick="closePage('profilePage')">← Назад</button>
+</div>
+<div class="profile-header">
+<div class="profile-avatar-wrap" id="profileAvatarWrap" onclick="openProfilePhotoInput()">
+<div class="profile-avatar-letter" id="profileAvatar">👤</div>
+<div class="profile-avatar-edit">📷</div>
+</div>
+<input type="file" id="profilePhotoInput" accept="image/*" style="display:none" onchange="handleProfilePhoto(event)">
+<div class="profile-name" id="profileName">Пользователь</div>
+<div class="profile-id" id="profileId">ID: ...</div>
+<div class="profile-balance-card">
+<div class="profile-balance-amount">💰 <span id="profileBalance">0</span> лей</div>
+<div class="profile-balance-actions">
+<button class="profile-balance-btn" onclick="openTopUp()">💳 Пополнить</button>
+<button class="profile-transfer-btn" id="adminTransferBtn" onclick="openAdminTransfer()" style="display:none">➡️ Перевести</button>
+</div>
+</div>
+</div>
+<div class="profile-stats">
+<div class="profile-stat">
+<div class="profile-stat-value" id="statListings">0</div>
+<div class="profile-stat-label">Объявлений</div>
+</div>
+<div class="profile-stat">
+<div class="profile-stat-value" id="statViews">0</div>
+<div class="profile-stat-label">Просмотров</div>
+</div>
+<div class="profile-stat">
+<div class="profile-stat-value" id="statRating">0</div>
+<div class="profile-stat-label">Очков</div>
+</div>
+</div>
+
+<!-- Уровень и прогресс-бар -->
+<div class="points-balance-card" id="pointsBalanceCard">
+<div class="points-balance-row">
+<div class="points-balance-main">
+<span class="points-balance-icon">⭐</span>
+<div class="points-balance-info">
+<div class="points-balance-value" id="pointsBalanceValue">0</div>
+<div class="points-balance-label">очков рейтинга</div>
+</div>
+</div>
+<div class="points-streak-block">
+<div class="points-streak-value" id="streakDaysDisplay">0</div>
+<div class="points-streak-label">🔥 дней подряд</div>
+</div>
+</div>
+<div class="points-balance-hint">Зарабатывайте очки за активность · тратьте в магазине</div>
+</div>
+
+<!-- Вкладки профиля -->
+<div class="profile-tabs">
+<button class="profile-tab active" id="tabMain" onclick="switchProfileTab('main')">Профиль</button>
+<button class="profile-tab" id="tabAchievements" onclick="switchProfileTab('achievements')">🏆 Достижения</button>
+<button class="profile-tab" id="tabListings" onclick="switchProfileTab('listings')">Объявления</button>
+</div>
+
+<!-- Вкладка: Профиль -->
+<div id="tabContentMain" class="profile-tab-content active">
+
+<div class="profile-section">
+<div class="profile-section-header">👤 Личная информация</div>
+<div class="profile-item" onclick="editField('name')">
+<span class="profile-item-icon">👤</span>
+<div class="profile-item-content">
+<div class="profile-item-label">Имя</div>
+<div class="profile-item-value editable" id="profileNameField">Не указано</div>
+</div>
+<span class="profile-item-arrow">›</span>
+</div>
+<div class="profile-item" onclick="editField('phone')">
+<span class="profile-item-icon">📱</span>
+<div class="profile-item-content">
+<div class="profile-item-label">Телефон</div>
+<div class="profile-item-value editable" id="profilePhoneField">Не указан</div>
+</div>
+<span class="profile-item-arrow">›</span>
+</div>
+<div class="profile-item" onclick="editField('email')">
+<span class="profile-item-icon">✉️</span>
+<div class="profile-item-content">
+<div class="profile-item-label">Email</div>
+<div class="profile-item-value editable" id="profileEmailField">Не указан</div>
+</div>
+<span class="profile-item-arrow">›</span>
+</div>
+<div class="profile-item" onclick="editField('city')">
+<span class="profile-item-icon">📍</span>
+<div class="profile-item-content">
+<div class="profile-item-label">Город</div>
+<div class="profile-item-value editable" id="profileCityField">Не указан</div>
+</div>
+<span class="profile-item-arrow">›</span>
+</div>
+</div>
+
+<div class="profile-section">
+<div class="profile-section-header" style="cursor:pointer" onclick="togglePremium()">
+💎 Premium
+<span style="float:right">▼</span>
+</div>
+<div id="premiumContent" class="profile-section-content" style="display:none">
+<div class="premium-options">
+<div class="premium-option" onclick="alert('Функция в разработке')">
+<div class="premium-option-icon">🔔</div>
+<div class="premium-option-info">
+<div class="premium-option-title">Уведомления</div>
+<div class="premium-option-desc">О новых объявлениях</div>
+<div class="premium-option-price">10 лей/мес за фильтр</div>
+</div>
+<div class="premium-option-status">Скоро</div>
+</div>
+</div>
+</div>
+</div>
+
+<div class="profile-section">
+<div class="profile-section-header">📊 Статистика</div>
+<div class="profile-item">
+<span class="profile-item-icon">📅</span>
+<div class="profile-item-content">
+<div class="profile-item-label">Дата регистрации</div>
+<div class="profile-item-value" id="profileRegDate">...</div>
+</div>
+</div>
+<div class="profile-item">
+<span class="profile-item-icon">👁</span>
+<div class="profile-item-content">
+<div class="profile-item-label">Всего просмотров</div>
+<div class="profile-item-value" id="profileTotalViews">0</div>
+</div>
+</div>
+<div class="profile-item">
+<span class="profile-item-icon">⭐</span>
+<div class="profile-item-content">
+<div class="profile-item-label">Очков рейтинга</div>
+<div class="profile-item-value" id="profileAvgRating">0</div>
+</div>
+</div>
+<div class="profile-item" onclick="toggleRatingLog()" style="cursor:pointer">
+<span class="profile-item-icon">📋</span>
+<div class="profile-item-content">
+<div class="profile-item-label">История начислений</div>
+<div class="profile-item-value" style="font-size:12px;color:var(--primary)">Показать ›</div>
+</div>
+</div>
+<div id="ratingLogSection" style="display:none;padding:0 12px 8px">
+<div id="ratingLogList" class="rating-log-list"></div>
+</div>
+</div>
+
+</div><!-- /tabContentMain -->
+
+<!-- Вкладка: Достижения -->
+<div id="tabContentAchievements" class="profile-tab-content" style="display:none">
+<div id="achievementsContainer"></div>
+</div>
+
+<!-- Вкладка: Объявления -->
+<div id="tabContentListings" class="profile-tab-content" style="display:none">
+<div id="myListingsContainer"></div>
+</div>
+
+</div><!-- /profilePage -->
+
+
+<div id="adminTransferModal" class="admin-transfer-modal" style="display:none">
+<div class="admin-transfer-overlay" onclick="closeAdminTransfer()"></div>
+<div class="admin-transfer-content">
+<div class="admin-transfer-header">
+<span class="admin-transfer-title">➡️ Перевод баланса</span>
+<button class="admin-transfer-close" onclick="closeAdminTransfer()">✕</button>
+</div>
+<div class="admin-transfer-body">
+<div class="admin-transfer-field">
+<label class="admin-transfer-label">Telegram ID получателя</label>
+<input type="number" id="transferRecipientId" class="admin-transfer-input"
+    placeholder="например: 123456789" inputmode="numeric">
+<div id="transferRecipientInfo" class="admin-transfer-recipient-info"></div>
+</div>
+<div class="admin-transfer-field">
+<label class="admin-transfer-label">Сумма (лей)</label>
+<input type="number" id="transferAmount" class="admin-transfer-input"
+    placeholder="например: 100" inputmode="numeric" min="1">
+</div>
+<div class="admin-transfer-field">
+<label class="admin-transfer-label">Комментарий (необязательно)</label>
+<input type="text" id="transferComment" class="admin-transfer-input"
+    placeholder="например: за размещение рекламы">
+</div>
+<div id="transferError" class="admin-transfer-error" style="display:none"></div>
+</div>
+<div class="admin-transfer-footer">
+<button class="admin-transfer-cancel" onclick="closeAdminTransfer()">Отмена</button>
+<button class="admin-transfer-confirm" id="transferConfirmBtn" onclick="confirmAdminTransfer()">Перевести</button>
+</div>
+</div>
+</div>
+
+<div id="editProfileModal" class="edit-profile-modal">
+<div class="edit-profile-content">
+<h3 id="editFieldTitle">Редактировать</h3>
+<input type="text" id="editFieldInput" placeholder="Введите значение">
+<div class="modal-buttons">
+<button class="btn-secondary" onclick="closeEditModal()">Отмена</button>
+<button class="btn-primary" onclick="saveField()">Сохранить</button>
+</div>
+</div>
+</div>
+
+<div id="photoModal" class="photo-modal">
+<div class="photo-modal-content">
+<button class="photo-modal-close" onclick="closePhotoModal()">✕</button>
+<button class="photo-modal-arrow photo-modal-prev" id="photoModalPrev" onclick="switchPhotoModal(-1)">‹</button>
+<img id="photoModalImg" class="photo-modal-img" src="">
+<button class="photo-modal-arrow photo-modal-next" id="photoModalNext" onclick="switchPhotoModal(1)">›</button>
+<div class="photo-modal-counter" id="photoModalCounter"></div>
+</div>
+</div>
+
+<nav class="bottom-nav">
+<button class="nav-button active" onclick="navigate('main')">
+<span class="nav-icon">🏠</span>
+<span class="nav-label">Главная</span>
+</button>
+<button class="nav-button" onclick="navigate('add')">
+<span class="nav-icon">➕</span>
+<span class="nav-label">Подать</span>
+</button>
+<button class="nav-button" onclick="navigate('favorites')">
+<span class="nav-icon-wrap">
+<span class="nav-icon">❤️</span>
+<span class="nav-badge" id="favNavBadge" style="display:none;">0</span>
+</span>
+<span class="nav-label">Избранное</span>
+</button>
+<button class="nav-button" onclick="navigate('profile')">
+<span class="nav-icon">👤</span>
+<span class="nav-label">Профиль</span>
+</button>
+</nav>
+
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="data.js?v=7.4"></script>
+<script src="app.js?v=7.4"></script>
+
+<!-- Модальное окно выбора типа детали -->
+<div id="partTypeModal" class="part-type-overlay" onclick="if(event.target===this)closeModal('partTypeModal')">
+<div class="part-type-sheet">
+<div class="part-type-sheet-handle"></div>
+<div class="part-type-sheet-title">Выберите тип детали</div>
+<div id="partTypeGrid" class="part-type-grid"></div>
+</div>
+</div>
+
+</body>
+</html>
