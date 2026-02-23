@@ -1961,10 +1961,10 @@ async function handleVideo(e) {
     const file = e.target.files[0];
     if (!file) return;
 
-    // Проверка размера файла (≤ 150 МБ)
-    const MAX_SIZE_MB = 150;
+    // Проверка размера файла (≤ 30 МБ)
+    const MAX_SIZE_MB = 30;
     if (file.size > MAX_SIZE_MB * 1024 * 1024) {
-        tg.showAlert(`Видео слишком большое (${(file.size / 1024 / 1024).toFixed(0)} МБ). Максимум ${MAX_SIZE_MB} МБ.`);
+        tg.showAlert(`Видео слишком большое (${(file.size / 1024 / 1024).toFixed(0)} МБ). Максимум ${MAX_SIZE_MB} МБ.\n\nСовет: запишите видео в настройках камеры в качестве 720p — оно будет легче.`);
         e.target.value = '';
         return;
     }
