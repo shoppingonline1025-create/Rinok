@@ -743,8 +743,15 @@ function renderExpandedAll() {
     let filtered = getFilteredCars();
     let topIds = filtered.filter(c => c.isTop || topRotationIds.includes(c.id)).map(c => c.id);
     let newIds = filtered.filter(c => isNew(c.createdAt)).map(c => c.id);
+    const _nowE = new Date();
     let allCars = filtered.filter(c => !topIds.includes(c.id) && !newIds.includes(c.id))
-        .sort((a, b) => new Date(getSortDate(b)) - new Date(getSortDate(a)));
+        .sort((a, b) => {
+            const aPin = a.searchPinExpiresAt && new Date(a.searchPinExpiresAt) > _nowE;
+            const bPin = b.searchPinExpiresAt && new Date(b.searchPinExpiresAt) > _nowE;
+            if (aPin && !bPin) return -1;
+            if (!aPin && bPin) return 1;
+            return new Date(getSortDate(b)) - new Date(getSortDate(a));
+        });
     
     const totalPages = Math.ceil(allCars.length / ITEMS_PER_PAGE);
     
@@ -1178,9 +1185,16 @@ function render() {
     // Все остальные объявления (не топ и не новые)
     let topIds = top.map(c => c.id);
     let newIds = newCars.map(c => c.id);
+    const _now = new Date();
     let allCars = filtered.filter(c => !topIds.includes(c.id) && !newIds.includes(c.id))
-        .sort((a, b) => new Date(getSortDate(b)) - new Date(getSortDate(a)));
-    
+        .sort((a, b) => {
+            const aPin = a.searchPinExpiresAt && new Date(a.searchPinExpiresAt) > _now;
+            const bPin = b.searchPinExpiresAt && new Date(b.searchPinExpiresAt) > _now;
+            if (aPin && !bPin) return -1;
+            if (!aPin && bPin) return 1;
+            return new Date(getSortDate(b)) - new Date(getSortDate(a));
+        });
+
     document.getElementById('topCount').textContent = `(${top.length})`;
     document.getElementById('newCount').textContent = `(${newCars.length})`;
     document.getElementById('allCount').textContent = `(${allCars.length})`;
@@ -2510,26 +2524,26 @@ function openTopUp() {
     try {
         tg.showPopup({
             title: '💳 Пополнение баланса',
-            message: `Текущий баланс: ${currentUser.balance || 0} лей\n\nРеальная оплата в разработке.\nДля теста нажмите "Добавить 100 лей".`,
+            message: `Текущий баланс: ${currentUser.balance || 0} руб\n\nРеальная оплата в разработке.\nДля теста нажмите "Добавить 100 руб".`,
             buttons: [
-                {id: 'add100', type: 'default', text: '+ 100 лей (тест)'},
-                {id: 'add500', type: 'default', text: '+ 500 лей (тест)'},
+                {id: 'add100', type: 'default', text: '+ 100 руб (тест)'},
+                {id: 'add500', type: 'default', text: '+ 500 руб (тест)'},
                 {id: 'cancel', type: 'cancel', text: 'Отмена'}
             ]
         }, (buttonId) => {
             if (buttonId === 'add100') {
                 addBalance(100, 'test');
-                tg.showAlert(`✅ Баланс пополнен!\nНовый баланс: ${currentUser.balance} лей`);
+                tg.showAlert(`✅ Баланс пополнен!\nНовый баланс: ${currentUser.balance} руб`);
             } else if (buttonId === 'add500') {
                 addBalance(500, 'test');
-                tg.showAlert(`✅ Баланс пополнен!\nНовый баланс: ${currentUser.balance} лей`);
+                tg.showAlert(`✅ Баланс пополнен!\nНовый баланс: ${currentUser.balance} руб`);
             }
         });
     } catch(e) {
         // Fallback если tg.showPopup недоступен
         const amount = 100;
         addBalance(amount, 'test');
-        alert(`✅ Тест: добавлено ${amount} лей\nНовый баланс: ${currentUser.balance} лей`);
+        alert(`✅ Тест: добавлено ${amount} руб\nНовый баланс: ${currentUser.balance} руб`);
     }
 }
 
@@ -2573,7 +2587,7 @@ function boostListing(carId, paid = false) {
                         autoBoostCarIds.includes(carId);
     
     if (hasAutoBoost) {
-        tg.showAlert('Это объявление уже поднимается автоматически 5 раз в день');
+        tg.showAlert('Это объявление уже поднимается автоматически каждые 6 часов');
         return;
     }
     
@@ -2585,7 +2599,7 @@ function boostListing(carId, paid = false) {
         if (!hasBalance(cost)) {
             tg.showPopup({
                 title: 'Недостаточно средств',
-                message: `Стоимость поднятия: ${cost} лей\nВаш баланс: ${currentUser.balance} лей\n\nПополнить баланс?`,
+                message: `Стоимость поднятия: ${cost} руб\nВаш баланс: ${currentUser.balance} руб\n\nПополнить баланс?`,
                 buttons: [
                     {id: 'topup', type: 'default', text: 'Пополнить'},
                     {id: 'cancel', type: 'cancel', text: 'Отмена'}
@@ -2602,7 +2616,7 @@ function boostListing(carId, paid = false) {
         
         performBoost(car);
         awardPoints('BOOST_PAID');
-        tg.showAlert('Объявление поднято! (-15 лей)\n+15 очков рейтинга');
+        tg.showAlert('Объявление поднято! (-15 руб)\n+15 очков рейтинга');
     } else {
         // Бесплатное поднятие
         performBoost(car);
@@ -2720,6 +2734,12 @@ function cleanExpiredTempTops() {
             pushCarToFirebase(car);
             changed = true;
         }
+        // Чистим истёкшие закрепы в поиске
+        if (car.searchPinExpiresAt && new Date(car.searchPinExpiresAt) <= now) {
+            delete car.searchPinExpiresAt;
+            pushCarToFirebase(car);
+            changed = true;
+        }
         return car;
     });
 }
@@ -2789,13 +2809,38 @@ function getTimeLeft(isoDate) {
     return h > 0 ? `${h}ч ${m}м` : `${m}м`;
 }
 
+function openAutoBoostModal() {
+    // Открыть выбор объявления для автоподнятия из панели Premium
+    const myListings = cars.filter(c => String(c.userId) === String(currentUser.id));
+    if (!myListings.length) {
+        tg.showAlert('У вас нет активных объявлений');
+        return;
+    }
+    if (myListings.length === 1) {
+        activateAutoBoost(myListings[0].id);
+        return;
+    }
+    const buttons = myListings.slice(0, 5).map(c => ({
+        id: String(c.id),
+        type: 'default',
+        text: `${(c.partTitle || c.brand + ' ' + (c.model||'')).trim()} · ${fmt(c.price)} ${c.currency}`.substring(0, 40)
+    }));
+    buttons.push({id: 'cancel', type: 'cancel', text: 'Отмена'});
+    tg.showPopup({
+        title: '🤖 Выберите объявление',
+        message: 'Для какого объявления активировать автоподнятие?',
+        buttons
+    }, (btn) => {
+        if (btn === 'cancel' || !btn) return;
+        activateAutoBoost(Number(btn));
+    });
+}
+
 function activateAutoBoost(carId) {
-    // Приводим к числу для надёжного сравнения
     carId = Number(carId);
     const car = cars.find(c => c.id === carId);
     if (!car) return;
-    
-    // Гарантируем структуру subscriptions
+
     if (!currentUser.subscriptions) currentUser.subscriptions = {};
     if (!currentUser.subscriptions.autoBoost) {
         currentUser.subscriptions.autoBoost = {active: false, carIds: [], cars: {}};
@@ -2806,65 +2851,61 @@ function activateAutoBoost(carId) {
     if (!currentUser.subscriptions.autoBoost.cars) {
         currentUser.subscriptions.autoBoost.cars = {};
     }
-    
+
     const carIds = currentUser.subscriptions.autoBoost.carIds.map(Number);
-    const hasActive = currentUser.subscriptions.autoBoost.active;
-    const carCount = carIds.length;
-    
-    // Уже активно для этого объявления?
-    if (hasActive && carIds.includes(carId)) {
+    if (currentUser.subscriptions.autoBoost.active && carIds.includes(carId)) {
         manageAutoBoost(carId);
         return;
     }
-    
-    let cost = 50; // первое объявление
-    if (hasActive && carCount > 0) cost = 20; // дополнительные
-    
-    const carTitle = `${car.brand} ${car.model} ${car.year || ''}`.trim();
-    
+
+    const carTitle = (car.partTitle || `${car.brand} ${car.model} ${car.year || ''}`).trim();
+
+    // Выбор тарифа
     tg.showPopup({
-        title: '🔄 Автоподнятие',
-        message: `Активировать для:\n${carTitle}\n\n✓ 5 раз в день (00:00, 05:00, 10:00, 15:00, 19:00)\n✓ Срок: 1 месяц\n✓ Бесплатное ручное поднятие сохраняется\n\nСтоимость: ${cost} лей/мес\nВаш баланс: ${currentUser.balance || 0} лей`,
+        title: '🤖 Автоподнятие',
+        message: `Объявление: ${carTitle}\n\n✓ Поднятие каждые 6 часов с момента публикации\n✓ Бесплатное ручное поднятие сохраняется\n\nВыберите срок:\nВаш баланс: ${currentUser.balance || 0} руб`,
         buttons: [
-            {id: 'buy', type: 'default', text: `Купить за ${cost} лей`},
-            {id: 'cancel', type: 'cancel', text: 'Отмена'}
+            {id: '3d',     type: 'default', text: '3 дня — 50 руб'},
+            {id: '10d',    type: 'default', text: '10 дней — 120 руб'},
+            {id: 'cancel', type: 'cancel',  text: 'Отмена'}
         ]
     }, (btnId) => {
-        if (btnId !== 'buy') return;
-        
+        if (btnId === 'cancel' || !btnId) return;
+        const cost     = btnId === '3d' ? 50 : 120;
+        const days     = btnId === '3d' ? 3  : 10;
+
         if (!hasBalance(cost)) {
             tg.showPopup({
                 title: 'Недостаточно средств',
-                message: `Стоимость: ${cost} лей\nВаш баланс: ${currentUser.balance || 0} лей\n\nПополнить баланс?`,
+                message: `Стоимость: ${cost} руб\nВаш баланс: ${currentUser.balance || 0} руб\n\nПополнить баланс?`,
                 buttons: [
-                    {id: 'topup', type: 'default', text: 'Пополнить'},
-                    {id: 'cancel', type: 'cancel', text: 'Отмена'}
+                    {id: 'topup',  type: 'default', text: 'Пополнить'},
+                    {id: 'cancel', type: 'cancel',  text: 'Отмена'}
                 ]
             }, (b) => { if (b === 'topup') openTopUp(); });
             return;
         }
-        
+
         if (!deductBalance(cost, 'autoboost', {carId, title: carTitle})) return;
-        
-        // Срок действия — месяц с сегодня
-        const expiresAt = new Date();
-        expiresAt.setMonth(expiresAt.getMonth() + 1);
-        
+
+        const expiresAt = new Date(Date.now() + days * 24 * 3600000).toISOString();
+
         currentUser.subscriptions.autoBoost.active = true;
-        // Храним ID как числа
         if (!currentUser.subscriptions.autoBoost.carIds.map(Number).includes(carId)) {
             currentUser.subscriptions.autoBoost.carIds.push(carId);
         }
         currentUser.subscriptions.autoBoost.cars[carId] = {
             activatedAt: new Date().toISOString(),
-            expiresAt: expiresAt.toISOString()
+            expiresAt
         };
-        
+
         saveUser();
         renderMyListings();
         renderProfile();
-        
-        tg.showAlert(`✅ Автоподнятие активировано!\nОбъявление: ${carTitle}\nАктивно до: ${expiresAt.toLocaleDateString('ru-RU')}`);
+        updatePremiumStatus();
+
+        const expStr = new Date(expiresAt).toLocaleDateString('ru-RU');
+        tg.showAlert(`✅ Автоподнятие активировано!\n${carTitle}\nАктивно до: ${expStr}\nОстаток: ${currentUser.balance} руб`);
     });
 }
 
@@ -2885,7 +2926,7 @@ function manageAutoBoost(carId) {
     
     tg.showPopup({
         title: '🔄 Автоподнятие активно',
-        message: `${carTitle}\n\n✅ Статус: активно\n📅 Активно до: ${expiresStr}\n\nПоднимается 5 раз в день:\n00:00, 05:00, 10:00, 15:00, 19:00`,
+        message: `${carTitle}\n\n✅ Статус: активно\n📅 Активно до: ${expiresStr}\n\nПоднимается каждые 6 часов автоматически`,
         buttons: [
             {id: 'disable', type: 'destructive', text: '🗑 Отключить'},
             {id: 'close', type: 'cancel', text: 'Закрыть'}
@@ -2922,6 +2963,129 @@ function disableAutoBoost(carId) {
     renderProfile();
     tg.showAlert('Автоподнятие отключено');
 }
+
+// ─── ЗАКРЕП В РЕЗУЛЬТАТАХ ПОИСКА ─────────────────────────────────────────────
+function buySearchPin() {
+    const COST = 50;
+    const myListings = cars.filter(c => String(c.userId) === String(currentUser.id));
+    if (!myListings.length) {
+        tg.showAlert('У вас нет активных объявлений');
+        return;
+    }
+    if ((currentUser.balance || 0) < COST) {
+        tg.showPopup({
+            title: 'Недостаточно средств',
+            message: `Стоимость: ${COST} руб\nВаш баланс: ${currentUser.balance || 0} руб\n\nПополнить баланс?`,
+            buttons: [
+                {id: 'topup',  type: 'default', text: 'Пополнить'},
+                {id: 'cancel', type: 'cancel',  text: 'Отмена'}
+            ]
+        }, (b) => { if (b === 'topup') openTopUp(); });
+        return;
+    }
+    if (myListings.length === 1) {
+        _doSearchPin(myListings[0].id, COST);
+        return;
+    }
+    const buttons = myListings.slice(0, 5).map(c => ({
+        id: String(c.id),
+        type: 'default',
+        text: `${(c.partTitle || c.brand + ' ' + (c.model||'')).trim()} · ${fmt(c.price)} ${c.currency}`.substring(0, 40)
+    }));
+    buttons.push({id: 'cancel', type: 'cancel', text: 'Отмена'});
+    tg.showPopup({
+        title: '📌 Закреп в поиске',
+        message: `${COST} руб / 48 часов\nВыберите объявление:`,
+        buttons
+    }, (btn) => {
+        if (btn === 'cancel' || !btn) return;
+        _doSearchPin(Number(btn), COST);
+    });
+}
+
+function _doSearchPin(carId, cost) {
+    const car = cars.find(c => c.id === carId);
+    if (!car) return;
+    const carTitle = (car.partTitle || `${car.brand} ${car.model}`).trim();
+    tg.showPopup({
+        title: '📌 Закреп в поиске',
+        message: `«${carTitle}»\n\n✓ Первым в ленте по марке на 48 часов\n✓ Стоимость: ${cost} руб\nВаш баланс после: ${(currentUser.balance||0) - cost} руб`,
+        buttons: [
+            {id: 'yes',    type: 'default', text: `Купить за ${cost} руб`},
+            {id: 'cancel', type: 'cancel',  text: 'Отмена'}
+        ]
+    }, (btn) => {
+        if (btn !== 'yes') return;
+        if (!deductBalance(cost, 'searchpin', {carId, title: carTitle})) return;
+        const expiresAt = new Date(Date.now() + 48 * 3600000).toISOString();
+        const carIdx = cars.findIndex(c => c.id === carId);
+        if (carIdx !== -1) {
+            cars[carIdx].searchPinExpiresAt = expiresAt;
+            pushCarToFirebase(cars[carIdx]);
+            DB.saveCars(cars);
+        }
+        render();
+        updatePremiumStatus();
+        const expStr = new Date(expiresAt).toLocaleString('ru-RU', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
+        tg.showAlert(`✅ Закреплено до ${expStr}!\nОстаток: ${currentUser.balance} руб`);
+    });
+}
+// ──────────────────────────────────────────────────────────────────────────────
+
+// ─── АВТОВЫПОЛНЕНИЕ АВТОПОДНЯТИЯ ─────────────────────────────────────────────
+function checkAndRunAutoBoosts() {
+    if (!currentUser?.subscriptions?.autoBoost?.active) return;
+    const now = new Date();
+    const SIX_HOURS = 6 * 3600000;
+    const carIds = normalizeFirebaseArray(currentUser.subscriptions.autoBoost.carIds).map(Number);
+    let changed = false;
+    carIds.forEach(carId => {
+        const carBoost = currentUser.subscriptions.autoBoost.cars?.[carId];
+        // Подписка истекла — отключаем
+        if (!carBoost?.expiresAt || new Date(carBoost.expiresAt) <= now) {
+            disableAutoBoost(carId);
+            return;
+        }
+        const car = cars.find(c => c.id === carId);
+        if (!car) return;
+        const lastAction = car.lastBoosted || car.createdAt;
+        if (now - new Date(lastAction) >= SIX_HOURS) {
+            performBoost(car);
+            const idx = cars.findIndex(c => c.id === carId);
+            if (idx !== -1) cars[idx] = car;
+            pushCarToFirebase(car);
+            changed = true;
+        }
+    });
+    if (changed) { DB.saveCars(cars); render(); }
+}
+// ──────────────────────────────────────────────────────────────────────────────
+
+// Обновить статусы в панели Premium
+function updatePremiumStatus() {
+    // Автоподнятие
+    const abEl = document.getElementById('autoBoostStatus');
+    if (abEl) {
+        const carIds = normalizeFirebaseArray(currentUser.subscriptions?.autoBoost?.carIds).map(Number);
+        const isActive = currentUser.subscriptions?.autoBoost?.active && carIds.length > 0;
+        abEl.textContent = isActive ? `Активна (${carIds.length} объявл.)` : 'Неактивна';
+        abEl.classList.toggle('active', isActive);
+    }
+    // Закреп в поиске
+    const spEl = document.getElementById('searchPinStatus');
+    if (spEl) {
+        const pinned = cars.find(c => String(c.userId) === String(currentUser.id)
+            && c.searchPinExpiresAt && new Date(c.searchPinExpiresAt) > new Date());
+        if (pinned) {
+            spEl.textContent = `Активен · ${getTimeLeft(pinned.searchPinExpiresAt)}`;
+            spEl.classList.add('active');
+        } else {
+            spEl.textContent = 'Неактивна';
+            spEl.classList.remove('active');
+        }
+    }
+}
+// ──────────────────────────────────────────────────────────────────────────────
 
 // renderProfile — обновляет данные профиля БЕЗ перехода на страницу
 // (вызывается после изменений баланса/подписок когда профиль уже открыт)
@@ -3571,17 +3735,17 @@ function renderMyListings() {
             const expiresBadge = expiresStr ? `<span class="boost-expires">${expiresStr}</span>` : '';
             autoBoostButton = `<button class="my-listing-autoboost active" onclick="event.stopPropagation(); manageAutoBoost(${car.id})">🔄 Автоподнятие активно ${expiresBadge}</button>`;
         } else {
-            autoBoostButton = `<button class="my-listing-autoboost-add" onclick="event.stopPropagation(); activateAutoBoost(${car.id})">➕ Автоподнятие — 50 лей/мес</button>`;
+            autoBoostButton = `<button class="my-listing-autoboost-add" onclick="event.stopPropagation(); activateAutoBoost(${car.id})">➕ Автоподнятие — от 50 руб</button>`;
         }
         
         // Кнопка ручного поднятия
         if (isFree) {
             boostButton = `<button class="my-listing-boost free" onclick="event.stopPropagation(); boostListing(${car.id})">⬆️ Поднять бесплатно</button>`;
         } else if (nextFree) {
-            boostButton = `<button class="my-listing-boost paid" onclick="event.stopPropagation(); boostListing(${car.id}, true)">⬆️ Поднять — 15 лей</button>
+            boostButton = `<button class="my-listing-boost paid" onclick="event.stopPropagation(); boostListing(${car.id}, true)">⬆️ Поднять — 15 руб</button>
                           <div class="boost-timer">Бесплатно через ${nextFree}</div>`;
         } else {
-            boostButton = `<button class="my-listing-boost paid" onclick="event.stopPropagation(); boostListing(${car.id}, true)">⬆️ Поднять — 15 лей</button>`;
+            boostButton = `<button class="my-listing-boost paid" onclick="event.stopPropagation(); boostListing(${car.id}, true)">⬆️ Поднять — 15 руб</button>`;
         }
         
         // Кнопка временного Топа (уровень 3+)
@@ -3754,7 +3918,7 @@ async function findTransferRecipient(telegramId) {
         }
         const user = Object.values(data)[0];
         const name = user.name || ((user.firstName || '') + ' ' + (user.lastName || '')).trim() || 'Без имени';
-        infoEl.innerHTML = `✅ <b>${name}</b> · Баланс: ${user.balance || 0} лей`;
+        infoEl.innerHTML = `✅ <b>${name}</b> · Баланс: ${user.balance || 0} руб`;
         infoEl.className = 'admin-transfer-recipient-info success';
         infoEl.dataset.userId = Object.keys(data)[0];
         infoEl.dataset.userName = name;
@@ -3836,8 +4000,8 @@ async function confirmAdminTransfer() {
 
         closeAdminTransfer();
         tg.showAlert(`✅ Перевод выполнен!
-${recipientName} получил ${amount} лей.
-Новый баланс: ${newBalance} лей`);
+${recipientName} получил ${amount} руб.
+Новый баланс: ${newBalance} руб`);
 
     } catch(e) {
         showErr('Ошибка: ' + e.message);
@@ -3863,7 +4027,7 @@ function renderAdminTransferHistory() {
         return `<div class="admin-history-item">
             <div class="admin-history-main">
                 <span class="admin-history-name">${t.recipientName}</span>
-                <span class="admin-history-amount">+${t.amount} лей</span>
+                <span class="admin-history-amount">+${t.amount} руб</span>
             </div>
             <div class="admin-history-meta">
                 ${t.comment ? `<span class="admin-history-comment">${t.comment}</span> · ` : ''}
@@ -4251,6 +4415,8 @@ document.getElementById('searchInput').addEventListener('input', function(e) {
     updateFavBadge();
     checkDailyStreak();
     cleanExpiredTempTops();
+    checkAndRunAutoBoosts();
+    updatePremiumStatus();
     setTimeout(() => {
         checkListingViewsMilestones();
         checkListingAgeBonus();

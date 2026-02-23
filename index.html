@@ -454,7 +454,7 @@
 <div class="profile-name" id="profileName">Пользователь</div>
 <div class="profile-id" id="profileId">ID: ...</div>
 <div class="profile-balance-card">
-<div class="profile-balance-amount">💰 <span id="profileBalance">0</span> лей</div>
+<div class="profile-balance-amount">💰 <span id="profileBalance">0</span> руб</div>
 <div class="profile-balance-actions">
 <button class="profile-balance-btn" onclick="openTopUp()">💳 Пополнить</button>
 <button class="profile-transfer-btn" id="adminTransferBtn" onclick="openAdminTransfer()" style="display:none">➡️ Перевести</button>
@@ -540,22 +540,45 @@
 </div>
 </div>
 
-<div class="profile-section">
-<div class="profile-section-header" style="cursor:pointer" onclick="togglePremium()">
-💎 Premium
-<span style="float:right">▼</span>
+<div class="profile-section premium-section">
+<div class="premium-section-header" onclick="togglePremium()">
+  <span class="premium-crown">👑</span>
+  <span class="premium-label">PREMIUM</span>
+  <span class="premium-arrow" id="premiumArrow">▼</span>
 </div>
 <div id="premiumContent" class="profile-section-content" style="display:none">
 <div class="premium-options">
+
+<div class="premium-option" onclick="openAutoBoostModal()">
+<div class="premium-option-icon">🤖</div>
+<div class="premium-option-info">
+<div class="premium-option-title">Автоподнятие</div>
+<div class="premium-option-desc">Каждые 6 часов автоматически</div>
+<div class="premium-option-price">50 руб / 3 дня &nbsp;·&nbsp; 120 руб / 10 дней</div>
+</div>
+<div class="premium-option-status" id="autoBoostStatus">Неактивна</div>
+</div>
+
+<div class="premium-option" onclick="buySearchPin()">
+<div class="premium-option-icon">📌</div>
+<div class="premium-option-info">
+<div class="premium-option-title">Закреп в результатах поиска</div>
+<div class="premium-option-desc">Первым в ленте по своей марке</div>
+<div class="premium-option-price">50 руб / 48 часов</div>
+</div>
+<div class="premium-option-status" id="searchPinStatus">Неактивна</div>
+</div>
+
 <div class="premium-option" onclick="alert('Функция в разработке')">
 <div class="premium-option-icon">🔔</div>
 <div class="premium-option-info">
 <div class="premium-option-title">Уведомления</div>
-<div class="premium-option-desc">О новых объявлениях</div>
-<div class="premium-option-price">10 лей/мес за фильтр</div>
+<div class="premium-option-desc">О новых объявлениях по фильтру</div>
+<div class="premium-option-price">10 руб/мес за фильтр</div>
 </div>
 <div class="premium-option-status">Скоро</div>
 </div>
+
 </div>
 </div>
 </div>
@@ -625,7 +648,7 @@
 <div id="transferRecipientInfo" class="admin-transfer-recipient-info"></div>
 </div>
 <div class="admin-transfer-field">
-<label class="admin-transfer-label">Сумма (лей)</label>
+<label class="admin-transfer-label">Сумма (руб)</label>
 <input type="number" id="transferAmount" class="admin-transfer-input"
     placeholder="например: 100" inputmode="numeric" min="1">
 </div>
