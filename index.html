@@ -569,14 +569,14 @@
 <div class="premium-option-status" id="searchPinStatus">Неактивна</div>
 </div>
 
-<div class="premium-option" onclick="alert('Функция в разработке')">
+<div class="premium-option" onclick="openFiltersPage()">
 <div class="premium-option-icon">🔔</div>
 <div class="premium-option-info">
 <div class="premium-option-title">Уведомления</div>
 <div class="premium-option-desc">О новых объявлениях по фильтру</div>
-<div class="premium-option-price">10 руб/мес за фильтр</div>
+<div class="premium-option-price">Бесплатно · до 3 фильтров</div>
 </div>
-<div class="premium-option-status">Скоро</div>
+<div class="premium-option-status" id="filtersStatus">Настроить</div>
 </div>
 
 </div>
@@ -712,6 +712,76 @@
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="data.js?v=7.4"></script>
 <script src="app.js?v=7.4"></script>
+
+<!-- Страница "Мои фильтры" -->
+<div id="filtersPage" class="profile-page" style="display:none">
+<div class="detail-header">
+<button class="back-button" onclick="closePage('filtersPage')">← Назад</button>
+<span style="position:absolute;left:50%;transform:translateX(-50%);font-weight:600;font-size:16px">🔔 Мои фильтры</span>
+</div>
+<div style="padding:16px 16px 32px">
+<p style="color:var(--text-secondary);font-size:14px;margin:0 0 20px;line-height:1.5">
+Получайте уведомление в Telegram когда появится новое объявление по вашему фильтру
+</p>
+<div id="filtersListContainer"></div>
+<button class="filter-add-btn" onclick="openFilterForm()">+ Добавить фильтр</button>
+</div>
+</div>
+
+<!-- Модал создания фильтра -->
+<div id="filterFormModal" class="part-type-overlay" style="display:none" onclick="if(event.target===this)closeFilterForm()">
+<div class="part-type-sheet filter-form-sheet">
+<div class="part-type-sheet-handle"></div>
+<div class="part-type-sheet-title">Новый фильтр</div>
+<div class="filter-form-body">
+<div class="filter-form-row">
+<label class="filter-form-label">Категория</label>
+<select id="filterCategory" class="filter-form-select">
+<option value="">Любая</option>
+<option value="car">Легковые</option>
+<option value="truck">Грузовые</option>
+<option value="moto">Мото</option>
+<option value="special">Спецтехника</option>
+<option value="parts">Запчасти</option>
+<option value="boat">Водный транспорт</option>
+</select>
+</div>
+<div class="filter-form-row">
+<label class="filter-form-label">Марка</label>
+<input id="filterBrand" type="text" class="filter-form-input" placeholder="Например: BMW">
+</div>
+<div class="filter-form-row">
+<label class="filter-form-label">Модель</label>
+<input id="filterModel" type="text" class="filter-form-input" placeholder="Например: 3 серии">
+</div>
+<div class="filter-form-row filter-form-row-2">
+<div>
+<label class="filter-form-label">Год от</label>
+<input id="filterYearFrom" type="number" class="filter-form-input" placeholder="2010">
+</div>
+<div>
+<label class="filter-form-label">Год до</label>
+<input id="filterYearTo" type="number" class="filter-form-input" placeholder="2024">
+</div>
+</div>
+<div class="filter-form-row filter-form-row-2">
+<div>
+<label class="filter-form-label">Цена от (руб)</label>
+<input id="filterPriceFrom" type="number" class="filter-form-input" placeholder="0">
+</div>
+<div>
+<label class="filter-form-label">Цена до (руб)</label>
+<input id="filterPriceTo" type="number" class="filter-form-input" placeholder="100000">
+</div>
+</div>
+<div class="filter-form-row">
+<label class="filter-form-label">Город</label>
+<input id="filterCity" type="text" class="filter-form-input" placeholder="Например: Тирасполь">
+</div>
+<button class="filter-save-btn" onclick="submitFilterForm()">Сохранить фильтр</button>
+</div>
+</div>
+</div>
 
 <!-- Модальное окно выбора типа детали -->
 <div id="partTypeModal" class="part-type-overlay" onclick="if(event.target===this)closeModal('partTypeModal')">

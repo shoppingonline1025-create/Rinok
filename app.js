@@ -2607,6 +2607,132 @@ function togglePremium() {
     content.style.display = isOpen ? 'none' : 'block';
 }
 
+// ─── Сохранённые фильтры / уведомления ────────────────────────
+
+const MAX_FILTERS = 3;
+
+function openFiltersPage() {
+    openPageWithLock('filtersPage');
+    loadAndRenderFilters();
+}
+
+async function loadAndRenderFilters() {
+    const container = document.getElementById('filtersListContainer');
+    if (!container) return;
+    container.innerHTML = '<div style="color:var(--text-secondary);text-align:center;padding:20px">Загрузка...</div>';
+    try {
+        const snapshot = await firebase.database().ref(`savedFilters/${currentUser.id}`).get();
+        renderFiltersList(snapshot.val());
+    } catch(e) {
+        container.innerHTML = '<div style="color:var(--text-secondary);text-align:center;padding:20px">Ошибка загрузки</div>';
+    }
+}
+
+function renderFiltersList(filters) {
+    const container = document.getElementById('filtersListContainer');
+    const addBtn = document.querySelector('.filter-add-btn');
+    if (!filters || Object.keys(filters).length === 0) {
+        container.innerHTML = '<div class="filters-empty">🔔 Фильтры не созданы.<br><br>Добавьте фильтр — и когда кто-то разместит подходящее объявление, вы получите уведомление в Telegram.</div>';
+        if (addBtn) addBtn.style.display = '';
+        return;
+    }
+    const entries = Object.entries(filters);
+    container.innerHTML = entries.map(([id, f]) => {
+        const params = [];
+        if (f.category) params.push(categoryNames[f.category] || f.category);
+        if (f.brand) params.push(f.brand);
+        if (f.model) params.push(f.model);
+        if (f.yearFrom || f.yearTo) params.push(`${f.yearFrom || '?'}–${f.yearTo || '?'} г.`);
+        if (f.priceFrom || f.priceTo) params.push(`${fmt(f.priceFrom || 0)}–${f.priceTo ? fmt(f.priceTo) : '∞'} руб`);
+        if (f.city) params.push(`📍 ${f.city}`);
+        return `<div class="filter-card">
+            <div class="filter-card-info">
+                <div class="filter-card-name">${f.name || buildFilterName(f)}</div>
+                <div class="filter-card-params">${params.join(' · ') || 'Все объявления'}</div>
+                <div class="filter-card-meta">🟢 Активен${f.lastNotifiedAt && f.lastNotifiedAt !== f.createdAt ? ` · уведомление: ${formatDate(f.lastNotifiedAt)}` : ''}</div>
+            </div>
+            <button class="filter-card-delete" onclick="deleteFilter('${id}')">🗑</button>
+        </div>`;
+    }).join('');
+    if (addBtn) addBtn.style.display = entries.length >= MAX_FILTERS ? 'none' : '';
+    if (entries.length >= MAX_FILTERS) {
+        container.innerHTML += `<div style="text-align:center;color:var(--text-secondary);font-size:13px;margin-top:8px">Максимум ${MAX_FILTERS} фильтра</div>`;
+    }
+    // Обновляем статус в premium панели
+    const filtersStatus = document.getElementById('filtersStatus');
+    if (filtersStatus) filtersStatus.textContent = `${entries.length} из ${MAX_FILTERS}`;
+}
+
+function buildFilterName(f) {
+    const parts = [];
+    if (f.brand) parts.push(f.brand);
+    if (f.model) parts.push(f.model);
+    if (!parts.length && f.category) parts.push(categoryNames[f.category] || f.category);
+    return parts.join(' ') || 'Все объявления';
+}
+
+function openFilterForm() {
+    ['filterCategory','filterBrand','filterModel','filterYearFrom','filterYearTo','filterPriceFrom','filterPriceTo','filterCity']
+        .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    document.getElementById('filterFormModal').style.display = 'flex';
+}
+
+function closeFilterForm() {
+    document.getElementById('filterFormModal').style.display = 'none';
+}
+
+async function submitFilterForm() {
+    const filter = {
+        category:   document.getElementById('filterCategory').value || '',
+        brand:      document.getElementById('filterBrand').value.trim() || '',
+        model:      document.getElementById('filterModel').value.trim() || '',
+        yearFrom:   Number(document.getElementById('filterYearFrom').value) || 0,
+        yearTo:     Number(document.getElementById('filterYearTo').value) || 0,
+        priceFrom:  Number(document.getElementById('filterPriceFrom').value) || 0,
+        priceTo:    Number(document.getElementById('filterPriceTo').value) || 0,
+        city:       document.getElementById('filterCity').value.trim() || '',
+        active:     true,
+        createdAt:  new Date().toISOString(),
+        lastNotifiedAt: new Date().toISOString(),
+    };
+    filter.name = buildFilterName(filter);
+
+    if (!filter.category && !filter.brand && !filter.city && !filter.priceFrom && !filter.priceTo) {
+        tg.showAlert('Укажите хотя бы одно условие фильтра');
+        return;
+    }
+    try {
+        const snapshot = await firebase.database().ref(`savedFilters/${currentUser.id}`).get();
+        const existing = snapshot.val();
+        if (existing && Object.keys(existing).length >= MAX_FILTERS) {
+            tg.showAlert(`Максимум ${MAX_FILTERS} фильтра. Удалите один чтобы добавить новый.`);
+            return;
+        }
+        await firebase.database().ref(`savedFilters/${currentUser.id}`).push(filter);
+        closeFilterForm();
+        loadAndRenderFilters();
+        tg.showAlert(`✅ Фильтр «${filter.name}» создан!\nБудем уведомлять вас о новых объявлениях.`);
+    } catch(e) {
+        tg.showAlert('Ошибка сохранения. Попробуйте ещё раз.');
+    }
+}
+
+async function deleteFilter(filterId) {
+    const doDelete = async () => {
+        await firebase.database().ref(`savedFilters/${currentUser.id}/${filterId}`).remove();
+        loadAndRenderFilters();
+    };
+    try {
+        tg.showPopup({
+            title: 'Удалить фильтр?',
+            message: 'Уведомления по этому фильтру перестанут приходить.',
+            buttons: [{id:'yes', type:'destructive', text:'Удалить'}, {id:'no', type:'cancel', text:'Отмена'}]
+        }, (btn) => { if (btn === 'yes') doDelete(); });
+    } catch(e) {
+        if (confirm('Удалить фильтр?')) doDelete();
+    }
+}
+
 function openTopUp() {
     // Используем нативный confirm как fallback если tg.showPopup не сработал
     try {
