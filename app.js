@@ -2609,8 +2609,10 @@ function togglePremium() {
 
 // ─── Уведомления по фильтру (платная функция) ─────────────────
 
-// Ключ в Firebase где хранится единственный фильтр пользователя
 const FILTER_KEY = 'main';
+let filterFormBrand = '';
+let filterFormModel = '';
+let filterFormCurrency = '$';
 
 function openFiltersPage() {
     openPageWithLock('filtersPage');
@@ -2625,7 +2627,7 @@ async function loadAndRenderFilterPage() {
         const snapshot = await firebase.database().ref(`savedFilters/${currentUser.id}/${FILTER_KEY}`).once('value');
         renderFilterPage(snapshot.val());
     } catch(e) {
-        content.innerHTML = `<div style="color:red;text-align:center;padding:40px;font-size:13px">Ошибка: ${e.message || e}</div>`;
+        content.innerHTML = '<div style="color:var(--text-secondary);text-align:center;padding:40px">Ошибка загрузки</div>';
     }
 }
 
@@ -2634,63 +2636,101 @@ function renderFilterPage(f) {
     const now = new Date();
     const isActive = f && f.expiresAt && new Date(f.expiresAt) > now;
 
-    // Обновляем статус в premium-панели
+    // Инициализируем состояние формы из существующего фильтра
+    filterFormBrand    = f?.brand || '';
+    filterFormModel    = f?.model || '';
+    filterFormCurrency = f?.priceCurrency || '$';
+
     const filtersStatus = document.getElementById('filtersStatus');
     if (filtersStatus) filtersStatus.textContent = isActive ? 'Активна' : 'Настроить';
 
-    if (!isActive) {
-        // Нет активной подписки
-        content.innerHTML = `
-            <div class="filters-empty" style="margin-bottom:24px">
-                🔔 Получайте уведомление в Telegram когда кто-то разместит объявление по вашему фильтру.<br><br>
-                Работает даже когда приложение закрыто.
+    const statusHtml = isActive
+        ? `<div class="filter-status-card">
+               <div class="filter-status-active">🟢 Активна до ${formatDate(f.expiresAt)}</div>
+               ${f.lastNotifiedAt && f.lastNotifiedAt !== f.createdAt
+                   ? `<div style="font-size:12px;color:var(--text-secondary);margin-top:4px">Уведомление: ${formatDate(f.lastNotifiedAt)}</div>`
+                   : ''}
+           </div>`
+        : `<div class="filters-empty" style="margin-bottom:8px">
+               🔔 Настройте фильтр и запустите уведомления.<br>
+               Telegram-сообщение придёт когда появится подходящее объявление.
+           </div>`;
+
+    const brandBtnText  = filterFormBrand  ? `${filterFormBrand} <span class="filter-clear-x" onclick="event.stopPropagation();clearFilterBrand()">×</span>`  : 'Любая ›';
+    const modelBtnText  = filterFormModel  ? `${filterFormModel} <span class="filter-clear-x" onclick="event.stopPropagation();clearFilterModel()">×</span>`  : (filterFormBrand ? 'Любая ›' : 'Сначала выберите марку');
+    const modelDisabled = filterFormBrand  ? '' : 'disabled';
+
+    const formHtml = `
+        <div class="filter-form-inline">
+            <div class="filter-form-row">
+                <label class="filter-form-label">Категория</label>
+                <select id="filterCategory" class="filter-form-select">
+                    <option value="" ${!f?.category?'selected':''}>Любая</option>
+                    <option value="car"     ${ f?.category==='car'    ?'selected':''}>Легковые</option>
+                    <option value="truck"   ${ f?.category==='truck'  ?'selected':''}>Грузовые</option>
+                    <option value="moto"    ${ f?.category==='moto'   ?'selected':''}>Мото</option>
+                    <option value="special" ${ f?.category==='special'?'selected':''}>Спецтехника</option>
+                    <option value="parts"   ${ f?.category==='parts'  ?'selected':''}>Запчасти</option>
+                    <option value="boat"    ${ f?.category==='boat'   ?'selected':''}>Водный транспорт</option>
+                </select>
             </div>
-            <div class="filter-plan-card" onclick="buyFilterSub(3, 50)">
-                <div class="filter-plan-price">50 руб</div>
-                <div class="filter-plan-period">3 дня</div>
+            <div class="filter-form-row">
+                <label class="filter-form-label">Марка</label>
+                <button id="filterBrandBtn" class="filter-picker-btn" onclick="openFilterBrandPicker()">${brandBtnText}</button>
             </div>
-            <div class="filter-plan-card filter-plan-card--best" onclick="buyFilterSub(30, 200)">
-                <div class="filter-plan-badge">Выгоднее</div>
-                <div class="filter-plan-price">200 руб</div>
-                <div class="filter-plan-period">30 дней</div>
+            <div class="filter-form-row">
+                <label class="filter-form-label">Модель</label>
+                <button id="filterModelBtn" class="filter-picker-btn" ${modelDisabled} onclick="openFilterModelPicker()">${modelBtnText}</button>
             </div>
-            <div style="text-align:center;font-size:12px;color:var(--text-secondary);margin-top:12px">
-                Баланс: ${currentUser.balance || 0} руб
-            </div>`;
-        return;
-    }
-
-    // Есть активная подписка
-    const expiresDate = formatDate(f.expiresAt);
-    const params = buildFilterSummary(f);
-
-    const hasParams = f.brand || f.category || f.city || f.priceFrom || f.priceTo || f.yearFrom || f.yearTo;
-
-    content.innerHTML = `
-        <div class="filter-status-card">
-            <div class="filter-status-active">🟢 Активна до ${expiresDate}</div>
-            ${f.lastNotifiedAt && f.lastNotifiedAt !== f.createdAt
-                ? `<div style="font-size:12px;color:var(--text-secondary);margin-top:4px">Последнее уведомление: ${formatDate(f.lastNotifiedAt)}</div>`
-                : ''}
-        </div>
-
-        ${hasParams ? `
-        <div class="filter-card" style="margin-bottom:12px">
-            <div class="filter-card-info">
-                <div class="filter-card-name">${buildFilterName(f)}</div>
-                <div class="filter-card-params">${params}</div>
+            <div class="filter-form-row filter-form-row-2">
+                <div>
+                    <label class="filter-form-label">Год от</label>
+                    <input id="filterYearFrom" type="number" class="filter-form-input" placeholder="2010" value="${f?.yearFrom || ''}">
+                </div>
+                <div>
+                    <label class="filter-form-label">Год до</label>
+                    <input id="filterYearTo" type="number" class="filter-form-input" placeholder="2024" value="${f?.yearTo || ''}">
+                </div>
             </div>
-        </div>` : `
-        <div class="filters-empty" style="padding:16px;margin-bottom:12px">
-            ⚙️ Фильтр не настроен.<br>Укажите параметры чтобы получать уведомления.
-        </div>`}
+            <div class="filter-form-row">
+                <label class="filter-form-label">Валюта цены</label>
+                <div class="filter-currency-row">
+                    <button class="filter-currency-btn ${filterFormCurrency==='$'?'active':''}" data-currency="$" onclick="setFilterCurrency('$')">$ USD</button>
+                    <button class="filter-currency-btn ${filterFormCurrency==='€'?'active':''}" data-currency="€" onclick="setFilterCurrency('€')">€ EUR</button>
+                    <button class="filter-currency-btn ${filterFormCurrency==='руб'?'active':''}" data-currency="руб" onclick="setFilterCurrency('руб')">₽ RUB</button>
+                </div>
+            </div>
+            <div class="filter-form-row filter-form-row-2">
+                <div>
+                    <label class="filter-form-label">Цена от</label>
+                    <input id="filterPriceFrom" type="number" class="filter-form-input" placeholder="0" value="${f?.priceFrom || ''}">
+                </div>
+                <div>
+                    <label class="filter-form-label">Цена до</label>
+                    <input id="filterPriceTo" type="number" class="filter-form-input" placeholder="10000" value="${f?.priceTo || ''}">
+                </div>
+            </div>
+            <div class="filter-form-row">
+                <label class="filter-form-label">Город</label>
+                <input id="filterCity" type="text" class="filter-form-input" placeholder="Тирасполь" value="${f?.city || ''}">
+            </div>
+        </div>`;
 
-        <button class="filter-add-btn" onclick="openFilterForm()">
-            ${hasParams ? '✏️ Изменить фильтр' : '⚙️ Настроить фильтр'}
-        </button>
-        <button class="filter-renew-btn" onclick="renewFilterSub()">
-            🔄 Продлить подписку
-        </button>`;
+    const actionsHtml = isActive
+        ? `<button class="filter-save-btn" onclick="saveFilterOnly()">Сохранить изменения</button>
+           <button class="filter-renew-btn" onclick="renewFilterSub()">🔄 Продлить подписку</button>`
+        : `<div style="text-align:center;font-size:12px;color:var(--text-secondary);margin:12px 0 8px">Баланс: ${currentUser.balance || 0} руб</div>
+           <div class="filter-plan-card" onclick="buyAndSaveFilter(3, 50)">
+               <div class="filter-plan-price">50 руб</div>
+               <div class="filter-plan-period">Запустить на 3 дня</div>
+           </div>
+           <div class="filter-plan-card filter-plan-card--best" onclick="buyAndSaveFilter(30, 200)">
+               <div class="filter-plan-badge">Выгоднее</div>
+               <div class="filter-plan-price">200 руб</div>
+               <div class="filter-plan-period">Запустить на 30 дней</div>
+           </div>`;
+
+    content.innerHTML = statusHtml + formHtml + actionsHtml;
 }
 
 function buildFilterName(f) {
@@ -2707,43 +2747,144 @@ function buildFilterSummary(f) {
     if (f.brand) parts.push(f.brand);
     if (f.model) parts.push(f.model);
     if (f.yearFrom || f.yearTo) parts.push(`${f.yearFrom || '?'}–${f.yearTo || '?'} г.`);
-    if (f.priceFrom || f.priceTo) parts.push(`${fmt(f.priceFrom || 0)}–${f.priceTo ? fmt(f.priceTo) : '∞'} руб`);
+    if (f.priceFrom || f.priceTo) parts.push(`${fmt(f.priceFrom || 0)}–${f.priceTo ? fmt(f.priceTo) : '∞'} ${f.priceCurrency || ''}`);
     if (f.city) parts.push(`📍 ${f.city}`);
     return parts.join(' · ') || 'Все объявления';
 }
 
-async function buyFilterSub(days, price) {
+function getFilterFormData() {
+    return {
+        category:      document.getElementById('filterCategory')?.value || '',
+        brand:         filterFormBrand,
+        model:         filterFormModel,
+        yearFrom:      Number(document.getElementById('filterYearFrom')?.value) || 0,
+        yearTo:        Number(document.getElementById('filterYearTo')?.value) || 0,
+        priceFrom:     Number(document.getElementById('filterPriceFrom')?.value) || 0,
+        priceTo:       Number(document.getElementById('filterPriceTo')?.value) || 0,
+        priceCurrency: filterFormCurrency,
+        city:          document.getElementById('filterCity')?.value.trim() || '',
+    };
+}
+
+// ─── Пикеры марки и модели для фильтра ───────────────────────
+
+function openFilterBrandPicker() {
+    const cat = document.getElementById('filterCategory')?.value || '';
+    const actualCat = (!cat || cat === 'parts') ? 'car' : cat;
+    const brands = Object.keys(BRANDS_DATA[actualCat] || {}).sort();
+    const list = document.getElementById('filterBrandList');
+    if (!list) return;
+    list.innerHTML = brands.map(b =>
+        `<div class="brand-option ${filterFormBrand === b ? 'selected' : ''}" onclick="selectFilterBrand('${b.replace(/'/g,"\\'")}')"> ${b}</div>`
+    ).join('');
+    document.getElementById('filterBrandPickerModal').style.display = 'flex';
+}
+
+function closeFilterBrandPicker() {
+    document.getElementById('filterBrandPickerModal').style.display = 'none';
+}
+
+function selectFilterBrand(brand) {
+    filterFormBrand = brand;
+    filterFormModel = '';
+    closeFilterBrandPicker();
+    const btn = document.getElementById('filterBrandBtn');
+    if (btn) btn.innerHTML = `${brand} <span class="filter-clear-x" onclick="event.stopPropagation();clearFilterBrand()">×</span>`;
+    const modelBtn = document.getElementById('filterModelBtn');
+    if (modelBtn) { modelBtn.textContent = 'Любая ›'; modelBtn.disabled = false; }
+}
+
+function clearFilterBrand() {
+    filterFormBrand = ''; filterFormModel = '';
+    const btn = document.getElementById('filterBrandBtn');
+    if (btn) btn.textContent = 'Любая ›';
+    const modelBtn = document.getElementById('filterModelBtn');
+    if (modelBtn) { modelBtn.textContent = 'Сначала выберите марку'; modelBtn.disabled = true; }
+}
+
+function openFilterModelPicker() {
+    if (!filterFormBrand) { tg.showAlert('Сначала выберите марку'); return; }
+    const cat = document.getElementById('filterCategory')?.value || '';
+    const actualCat = (!cat || cat === 'parts') ? 'car' : cat;
+    const brandData = BRANDS_DATA[actualCat]?.[filterFormBrand];
+    const models = brandData ? (Array.isArray(brandData) ? brandData : Object.keys(brandData)) : [];
+    const list = document.getElementById('filterModelList');
+    if (!list) return;
+    list.innerHTML = models.sort().map(m =>
+        `<div class="brand-option ${filterFormModel === m ? 'selected' : ''}" onclick="selectFilterModel('${m.replace(/'/g,"\\'")}')"> ${m}</div>`
+    ).join('');
+    document.getElementById('filterModelPickerModal').style.display = 'flex';
+}
+
+function closeFilterModelPicker() {
+    document.getElementById('filterModelPickerModal').style.display = 'none';
+}
+
+function selectFilterModel(model) {
+    filterFormModel = model;
+    closeFilterModelPicker();
+    const btn = document.getElementById('filterModelBtn');
+    if (btn) btn.innerHTML = `${model} <span class="filter-clear-x" onclick="event.stopPropagation();clearFilterModel()">×</span>`;
+}
+
+function clearFilterModel() {
+    filterFormModel = '';
+    const btn = document.getElementById('filterModelBtn');
+    if (btn) btn.textContent = 'Любая ›';
+}
+
+function setFilterCurrency(c) {
+    filterFormCurrency = c;
+    document.querySelectorAll('.filter-currency-btn').forEach(btn =>
+        btn.classList.toggle('active', btn.dataset.currency === c)
+    );
+}
+
+// ─── Сохранение и покупка ─────────────────────────────────────
+
+async function buyAndSaveFilter(days, price) {
+    const params = getFilterFormData();
+    if (!params.category && !params.brand && !params.city && !params.priceFrom && !params.priceTo && !params.yearFrom && !params.yearTo) {
+        tg.showAlert('Укажите хотя бы одно условие фильтра перед запуском');
+        return;
+    }
     if (!deductBalance(price, 'filter_sub', {days, price})) return;
 
     const now = new Date();
-    // Если уже есть активная подписка — продлеваем от текущей даты окончания
     let snapshot;
     try { snapshot = await firebase.database().ref(`savedFilters/${currentUser.id}/${FILTER_KEY}`).once('value'); } catch(e) {}
     const existing = snapshot?.val();
     const currentExpiry = existing?.expiresAt && new Date(existing.expiresAt) > now
-        ? new Date(existing.expiresAt)
-        : now;
-
+        ? new Date(existing.expiresAt) : now;
     const expiresAt = new Date(currentExpiry.getTime() + days * 24 * 60 * 60 * 1000).toISOString();
 
     const filterData = {
-        ...(existing || {}),
+        ...params,
         active: true,
         expiresAt,
         createdAt: existing?.createdAt || now.toISOString(),
-        lastNotifiedAt: existing?.lastNotifiedAt || now.toISOString(),
+        lastNotifiedAt: now.toISOString(),
     };
-
     try {
         await firebase.database().ref(`savedFilters/${currentUser.id}/${FILTER_KEY}`).set(filterData);
         saveUser();
         loadAndRenderFilterPage();
-        tg.showAlert(`✅ Подписка активирована на ${days} дней!\nСрок действия до: ${formatDate(expiresAt)}\n\nНастройте фильтр чтобы получать уведомления.`);
+        tg.showAlert(`✅ Запущено на ${days} дней!\nФильтр: ${buildFilterName(params)}\nДо: ${formatDate(expiresAt)}`);
     } catch(e) {
-        // Возвращаем деньги если Firebase недоступен
         currentUser.balance = (currentUser.balance || 0) + price;
         saveUser();
-        tg.showAlert('Ошибка активации. Попробуйте ещё раз.');
+        tg.showAlert('Ошибка. Попробуйте ещё раз.');
+    }
+}
+
+async function saveFilterOnly() {
+    const params = getFilterFormData();
+    try {
+        await firebase.database().ref(`savedFilters/${currentUser.id}/${FILTER_KEY}`).update(params);
+        loadAndRenderFilterPage();
+        tg.showAlert(`✅ Фильтр сохранён: ${buildFilterName(params)}`);
+    } catch(e) {
+        tg.showAlert('Ошибка сохранения. Попробуйте ещё раз.');
     }
 }
 
@@ -2751,67 +2892,18 @@ function renewFilterSub() {
     try {
         tg.showPopup({
             title: '🔄 Продлить подписку',
-            message: `Текущий баланс: ${currentUser.balance || 0} руб`,
+            message: `Баланс: ${currentUser.balance || 0} руб`,
             buttons: [
-                {id: '3', type: 'default', text: '50 руб — 3 дня'},
+                {id: '3',  type: 'default', text: '50 руб — 3 дня'},
                 {id: '30', type: 'default', text: '200 руб — 30 дней'},
                 {id: 'cancel', type: 'cancel', text: 'Отмена'}
             ]
-        }, (btn) => {
-            if (btn === '3') buyFilterSub(3, 50);
-            else if (btn === '30') buyFilterSub(30, 200);
+        }, async (btn) => {
+            if (btn === '3')  await buyAndSaveFilter(3, 50);
+            if (btn === '30') await buyAndSaveFilter(30, 200);
         });
     } catch(e) {
-        buyFilterSub(3, 50);
-    }
-}
-
-function openFilterForm() {
-    // Заполняем форму текущими значениями если они есть
-    firebase.database().ref(`savedFilters/${currentUser.id}/${FILTER_KEY}`).once('value').then(snap => {
-        const f = snap.val() || {};
-        const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
-        set('filterCategory', f.category);
-        set('filterBrand', f.brand);
-        set('filterModel', f.model);
-        set('filterYearFrom', f.yearFrom || '');
-        set('filterYearTo', f.yearTo || '');
-        set('filterPriceFrom', f.priceFrom || '');
-        set('filterPriceTo', f.priceTo || '');
-        set('filterCity', f.city);
-        document.getElementById('filterFormModal').style.display = 'flex';
-    });
-}
-
-function closeFilterForm() {
-    document.getElementById('filterFormModal').style.display = 'none';
-}
-
-async function submitFilterForm() {
-    const params = {
-        category:  document.getElementById('filterCategory').value || '',
-        brand:     document.getElementById('filterBrand').value.trim() || '',
-        model:     document.getElementById('filterModel').value.trim() || '',
-        yearFrom:  Number(document.getElementById('filterYearFrom').value) || 0,
-        yearTo:    Number(document.getElementById('filterYearTo').value) || 0,
-        priceFrom: Number(document.getElementById('filterPriceFrom').value) || 0,
-        priceTo:   Number(document.getElementById('filterPriceTo').value) || 0,
-        city:      document.getElementById('filterCity').value.trim() || '',
-    };
-
-    if (!params.category && !params.brand && !params.city && !params.priceFrom && !params.priceTo) {
-        tg.showAlert('Укажите хотя бы одно условие фильтра');
-        return;
-    }
-
-    try {
-        // Обновляем только параметры, не трогая expiresAt и другие служебные поля
-        await firebase.database().ref(`savedFilters/${currentUser.id}/${FILTER_KEY}`).update(params);
-        closeFilterForm();
-        loadAndRenderFilterPage();
-        tg.showAlert(`✅ Фильтр сохранён!\nБудем уведомлять о новых: ${buildFilterName(params)}`);
-    } catch(e) {
-        tg.showAlert('Ошибка сохранения. Попробуйте ещё раз.');
+        buyAndSaveFilter(3, 50);
     }
 }
 

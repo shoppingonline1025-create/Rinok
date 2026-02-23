@@ -53,6 +53,8 @@ function matchesFilter(car, filter) {
     if (filter.model && car.model && !car.model.toLowerCase().includes(filter.model.toLowerCase())) return false;
     if (filter.yearFrom && car.year && Number(car.year) < Number(filter.yearFrom)) return false;
     if (filter.yearTo && car.year && Number(car.year) > Number(filter.yearTo)) return false;
+    // Цена проверяется только если валюта совпадает
+    if ((filter.priceFrom || filter.priceTo) && filter.priceCurrency && car.currency !== filter.priceCurrency) return false;
     if (filter.priceFrom && car.price && Number(car.price) < Number(filter.priceFrom)) return false;
     if (filter.priceTo && car.price && Number(car.price) > Number(filter.priceTo)) return false;
     if (filter.city && car.city && !car.city.toLowerCase().includes(filter.city.toLowerCase())) return false;

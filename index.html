@@ -724,58 +724,21 @@
 </div>
 </div>
 
-<!-- Модал создания фильтра -->
-<div id="filterFormModal" class="part-type-overlay" style="display:none" onclick="if(event.target===this)closeFilterForm()">
-<div class="part-type-sheet filter-form-sheet">
+<!-- Пикер марки для фильтра -->
+<div id="filterBrandPickerModal" class="part-type-overlay" style="display:none" onclick="if(event.target===this)closeFilterBrandPicker()">
+<div class="part-type-sheet">
 <div class="part-type-sheet-handle"></div>
-<div class="part-type-sheet-title">Новый фильтр</div>
-<div class="filter-form-body">
-<div class="filter-form-row">
-<label class="filter-form-label">Категория</label>
-<select id="filterCategory" class="filter-form-select">
-<option value="">Любая</option>
-<option value="car">Легковые</option>
-<option value="truck">Грузовые</option>
-<option value="moto">Мото</option>
-<option value="special">Спецтехника</option>
-<option value="parts">Запчасти</option>
-<option value="boat">Водный транспорт</option>
-</select>
-</div>
-<div class="filter-form-row">
-<label class="filter-form-label">Марка</label>
-<input id="filterBrand" type="text" class="filter-form-input" placeholder="Например: BMW">
-</div>
-<div class="filter-form-row">
-<label class="filter-form-label">Модель</label>
-<input id="filterModel" type="text" class="filter-form-input" placeholder="Например: 3 серии">
-</div>
-<div class="filter-form-row filter-form-row-2">
-<div>
-<label class="filter-form-label">Год от</label>
-<input id="filterYearFrom" type="number" class="filter-form-input" placeholder="2010">
-</div>
-<div>
-<label class="filter-form-label">Год до</label>
-<input id="filterYearTo" type="number" class="filter-form-input" placeholder="2024">
+<div class="part-type-sheet-title">Выберите марку</div>
+<div id="filterBrandList" class="brand-list"></div>
 </div>
 </div>
-<div class="filter-form-row filter-form-row-2">
-<div>
-<label class="filter-form-label">Цена от (руб)</label>
-<input id="filterPriceFrom" type="number" class="filter-form-input" placeholder="0">
-</div>
-<div>
-<label class="filter-form-label">Цена до (руб)</label>
-<input id="filterPriceTo" type="number" class="filter-form-input" placeholder="100000">
-</div>
-</div>
-<div class="filter-form-row">
-<label class="filter-form-label">Город</label>
-<input id="filterCity" type="text" class="filter-form-input" placeholder="Например: Тирасполь">
-</div>
-<button class="filter-save-btn" onclick="submitFilterForm()">Сохранить фильтр</button>
-</div>
+
+<!-- Пикер модели для фильтра -->
+<div id="filterModelPickerModal" class="part-type-overlay" style="display:none" onclick="if(event.target===this)closeFilterModelPicker()">
+<div class="part-type-sheet">
+<div class="part-type-sheet-handle"></div>
+<div class="part-type-sheet-title">Выберите модель</div>
+<div id="filterModelList" class="brand-list"></div>
 </div>
 </div>
 

@@ -3301,3 +3301,23 @@ body {
     border: 1.5px solid var(--primary); border-radius: 12px;
     font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 10px;
 }
+.filter-form-inline { margin-bottom: 8px; }
+.filter-picker-btn {
+    width: 100%; padding: 10px 12px; text-align: left;
+    background: var(--card-bg); border: 1px solid var(--border-color);
+    border-radius: 10px; font-size: 15px; color: var(--text); cursor: pointer;
+    box-sizing: border-box;
+}
+.filter-picker-btn:disabled { opacity: 0.45; cursor: default; }
+.filter-clear-x { opacity: 0.5; margin-left: 6px; font-size: 17px; }
+.filter-currency-row { display: flex; gap: 8px; }
+.filter-currency-btn {
+    flex: 1; padding: 9px 4px;
+    background: var(--card-bg); border: 1.5px solid var(--border-color);
+    border-radius: 10px; font-size: 13px; font-weight: 600;
+    color: var(--text); cursor: pointer;
+}
+.filter-currency-btn.active {
+    border-color: var(--primary); color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 10%, transparent);
+}
