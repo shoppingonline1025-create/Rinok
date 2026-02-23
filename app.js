@@ -2625,7 +2625,7 @@ async function loadAndRenderFilterPage() {
         const snapshot = await firebase.database().ref(`savedFilters/${currentUser.id}/${FILTER_KEY}`).once('value');
         renderFilterPage(snapshot.val());
     } catch(e) {
-        content.innerHTML = '<div style="color:var(--text-secondary);text-align:center;padding:40px">Ошибка загрузки</div>';
+        content.innerHTML = `<div style="color:red;text-align:center;padding:40px;font-size:13px">Ошибка: ${e.message || e}</div>`;
     }
 }
 
