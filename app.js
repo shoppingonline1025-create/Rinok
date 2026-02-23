@@ -154,6 +154,20 @@ function getOptimizedImageUrl(url, width = 400) {
 }
 
 /**
+ * Оптимизация URL Cloudinary для видео — отдаёт версию 720p
+ * @param {string} url - оригинальный Cloudinary URL
+ * @returns {string} - URL видео 720p
+ */
+function getOptimizedVideoUrl(url) {
+    if (!url || !url.includes('cloudinary.com')) {
+        return url;
+    }
+    // h_720,c_limit — ограничить высоту 720p без растяжения
+    // q_auto — авто качество, vc_auto — авто кодек (H.264/VP9)
+    return url.replace('/upload/', '/upload/h_720,c_limit,q_auto,vc_auto/');
+}
+
+/**
  * URL для миниатюры (карточка объявления)
  */
 function getThumbUrl(url) {
@@ -1468,7 +1482,7 @@ function showDetail(id) {
             ${c.video ? `
             <div class="detail-section">
                 <div class="detail-section-title">Видео</div>
-                <video src="${c.video}" controls playsinline style="width:100%;border-radius:12px;max-height:340px;background:#000;"></video>
+                <video src="${getOptimizedVideoUrl(c.video)}" controls playsinline style="width:100%;border-radius:12px;max-height:340px;background:#000;"></video>
             </div>
             ` : ''}
             <div class="detail-section">
@@ -1946,6 +1960,40 @@ function handlePhotos(e) {
 async function handleVideo(e) {
     const file = e.target.files[0];
     if (!file) return;
+
+    // Проверка размера файла (≤ 150 МБ)
+    const MAX_SIZE_MB = 150;
+    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+        tg.showAlert(`Видео слишком большое (${(file.size / 1024 / 1024).toFixed(0)} МБ). Максимум ${MAX_SIZE_MB} МБ.`);
+        e.target.value = '';
+        return;
+    }
+
+    // Проверка длительности (≤ 30 сек)
+    document.getElementById('videoPreview').innerHTML =
+        `<div class="file-preview-item" style="padding:16px;text-align:center;color:var(--text-secondary);">⏳ Проверка видео...</div>`;
+
+    let duration;
+    try {
+        duration = await new Promise((resolve, reject) => {
+            const vid = document.createElement('video');
+            vid.preload = 'metadata';
+            const objUrl = URL.createObjectURL(file);
+            vid.onloadedmetadata = () => { URL.revokeObjectURL(objUrl); resolve(vid.duration); };
+            vid.onerror = () => { URL.revokeObjectURL(objUrl); reject(); };
+            vid.src = objUrl;
+        });
+    } catch {
+        // Если не удалось прочитать метаданные — пропускаем проверку и грузим
+        duration = 0;
+    }
+
+    if (duration > 30) {
+        tg.showAlert(`Видео слишком длинное (${Math.round(duration)} сек). Максимум 30 секунд.`);
+        e.target.value = '';
+        document.getElementById('videoPreview').innerHTML = '';
+        return;
+    }
 
     document.getElementById('videoPreview').innerHTML =
         `<div class="file-preview-item" style="padding:16px;text-align:center;color:var(--text-secondary);">⏳ Загрузка видео...</div>`;
