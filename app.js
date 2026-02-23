@@ -2609,7 +2609,8 @@ function togglePremium() {
 
 // ─── Уведомления по фильтру (платная функция) ─────────────────
 
-const FILTER_KEY = 'main';
+const MAX_FILTERS = 5;
+let currentEditingFilterKey = null;
 let filterFormBrand = '';
 let filterFormModel = '';
 let filterFormCurrency = '$';
@@ -2624,14 +2625,117 @@ async function loadAndRenderFilterPage() {
     if (!content) return;
     content.innerHTML = '<div style="color:var(--text-secondary);text-align:center;padding:40px">Загрузка...</div>';
     try {
-        const snapshot = await firebase.database().ref(`savedFilters/${currentUser.id}/${FILTER_KEY}`).once('value');
-        renderFilterPage(snapshot.val());
+        const snapshot = await firebase.database().ref(`savedFilters/${currentUser.id}`).once('value');
+        renderFiltersListPage(snapshot.val());
     } catch(e) {
         content.innerHTML = '<div style="color:var(--text-secondary);text-align:center;padding:40px">Ошибка загрузки</div>';
     }
 }
 
-function renderFilterPage(f) {
+function renderFiltersListPage(filtersObj) {
+    const content = document.getElementById('filtersPageContent');
+    if (!content) return;
+    const now = new Date();
+    const entries = filtersObj ? Object.entries(filtersObj).filter(([,f]) => f) : [];
+    const activeCount = entries.filter(([,f]) => f.expiresAt && new Date(f.expiresAt) > now).length;
+
+    // Обновляем статус в профиле
+    const filtersStatus = document.getElementById('filtersStatus');
+    if (filtersStatus) {
+        if (activeCount > 0) {
+            filtersStatus.textContent = `${activeCount} активн.`;
+            filtersStatus.classList.add('active');
+        } else {
+            filtersStatus.textContent = entries.length > 0 ? 'Истекли' : 'Настроить';
+            filtersStatus.classList.remove('active');
+        }
+    }
+
+    let html = '';
+
+    if (entries.length === 0) {
+        html += `<div class="filters-empty">
+            🔔 Нет настроенных фильтров.<br>
+            Добавьте фильтр и получайте Telegram-уведомления когда появится нужное авто.
+        </div>`;
+    } else {
+        entries.forEach(([key, f]) => {
+            const isActive = f.expiresAt && new Date(f.expiresAt) > now;
+            const statusText = isActive
+                ? `🟢 До ${formatDate(f.expiresAt)}`
+                : '🔴 Подписка истекла';
+            const summary = buildFilterSummary(f);
+            const name = buildFilterName(f);
+            html += `<div class="filter-card" onclick="openEditFilter('${key}')">
+                <div class="filter-card-info">
+                    <div class="filter-card-name">${name}</div>
+                    ${summary !== name ? `<div class="filter-card-params">${summary}</div>` : ''}
+                    <div class="filter-card-meta">${statusText}</div>
+                </div>
+                <button class="filter-card-delete" onclick="event.stopPropagation();deleteFilter('${key}')">🗑</button>
+            </div>`;
+        });
+    }
+
+    if (entries.length < MAX_FILTERS) {
+        html += `<button class="filter-add-btn" onclick="addNewFilter()">+ Добавить фильтр</button>`;
+    } else {
+        html += `<div style="text-align:center;font-size:13px;color:var(--text-secondary);margin-top:12px">Достигнут лимит ${MAX_FILTERS} фильтров</div>`;
+    }
+
+    content.innerHTML = html;
+}
+
+function openEditFilter(key) {
+    currentEditingFilterKey = key;
+    const content = document.getElementById('filtersPageContent');
+    if (!content) return;
+    content.innerHTML = '<div style="color:var(--text-secondary);text-align:center;padding:40px">Загрузка...</div>';
+    firebase.database().ref(`savedFilters/${currentUser.id}/${key}`).once('value')
+        .then(snap => renderFilterPage(snap.val(), key))
+        .catch(() => {
+            content.innerHTML = '<div style="color:var(--text-secondary);text-align:center;padding:40px">Ошибка загрузки</div>';
+        });
+}
+
+function addNewFilter() {
+    firebase.database().ref(`savedFilters/${currentUser.id}`).once('value').then(snap => {
+        const existing = snap.val();
+        const count = existing ? Object.keys(existing).filter(k => existing[k]).length : 0;
+        if (count >= MAX_FILTERS) {
+            tg.showAlert(`Максимум ${MAX_FILTERS} фильтров на аккаунт`);
+            return;
+        }
+        const key = `f_${Date.now()}`;
+        currentEditingFilterKey = key;
+        renderFilterPage(null, key);
+    });
+}
+
+async function deleteFilter(key) {
+    try {
+        tg.showPopup({
+            title: 'Удалить фильтр?',
+            message: 'Уведомления по этому фильтру прекратятся.',
+            buttons: [
+                {id: 'yes', type: 'destructive', text: 'Удалить'},
+                {id: 'no',  type: 'cancel',      text: 'Отмена'}
+            ]
+        }, async (btn) => {
+            if (btn !== 'yes') return;
+            await firebase.database().ref(`savedFilters/${currentUser.id}/${key}`).remove();
+            loadAndRenderFilterPage();
+        });
+    } catch(e) {
+        if (confirm('Удалить фильтр?')) {
+            await firebase.database().ref(`savedFilters/${currentUser.id}/${key}`).remove();
+            loadAndRenderFilterPage();
+        }
+    }
+}
+
+function renderFilterPage(f, key) {
+    if (key) currentEditingFilterKey = key;
     const content = document.getElementById('filtersPageContent');
     const now = new Date();
     const isActive = f && f.expiresAt && new Date(f.expiresAt) > now;
@@ -2641,8 +2745,7 @@ function renderFilterPage(f) {
     filterFormModel    = f?.model || '';
     filterFormCurrency = f?.priceCurrency || '$';
 
-    const filtersStatus = document.getElementById('filtersStatus');
-    if (filtersStatus) filtersStatus.textContent = isActive ? 'Активна' : 'Настроить';
+    const backBtn = `<button onclick="loadAndRenderFilterPage()" style="background:none;border:none;color:var(--primary);font-size:14px;padding:0;margin-bottom:12px;cursor:pointer;">← К списку фильтров</button>`;
 
     const statusHtml = isActive
         ? `<div class="filter-status-card">
@@ -2730,7 +2833,7 @@ function renderFilterPage(f) {
                <div class="filter-plan-period">Запустить на 30 дней</div>
            </div>`;
 
-    content.innerHTML = statusHtml + formHtml + actionsHtml;
+    content.innerHTML = backBtn + statusHtml + formHtml + actionsHtml;
 }
 
 function buildFilterName(f) {
@@ -2850,9 +2953,12 @@ async function buyAndSaveFilter(days, price) {
     }
     if (!deductBalance(price, 'filter_sub', {days, price})) return;
 
+    const filterKey = currentEditingFilterKey;
+    if (!filterKey) { tg.showAlert('Ошибка: фильтр не выбран'); return; }
+
     const now = new Date();
     let snapshot;
-    try { snapshot = await firebase.database().ref(`savedFilters/${currentUser.id}/${FILTER_KEY}`).once('value'); } catch(e) {}
+    try { snapshot = await firebase.database().ref(`savedFilters/${currentUser.id}/${filterKey}`).once('value'); } catch(e) {}
     const existing = snapshot?.val();
     const currentExpiry = existing?.expiresAt && new Date(existing.expiresAt) > now
         ? new Date(existing.expiresAt) : now;
@@ -2866,7 +2972,7 @@ async function buyAndSaveFilter(days, price) {
         lastNotifiedAt: now.toISOString(),
     };
     try {
-        await firebase.database().ref(`savedFilters/${currentUser.id}/${FILTER_KEY}`).set(filterData);
+        await firebase.database().ref(`savedFilters/${currentUser.id}/${filterKey}`).set(filterData);
         saveUser();
         loadAndRenderFilterPage();
         tg.showAlert(`✅ Запущено на ${days} дней!\nФильтр: ${buildFilterName(params)}\nДо: ${formatDate(expiresAt)}`);
@@ -2878,9 +2984,11 @@ async function buyAndSaveFilter(days, price) {
 }
 
 async function saveFilterOnly() {
+    const filterKey = currentEditingFilterKey;
+    if (!filterKey) { tg.showAlert('Ошибка: фильтр не выбран'); return; }
     const params = getFilterFormData();
     try {
-        await firebase.database().ref(`savedFilters/${currentUser.id}/${FILTER_KEY}`).update(params);
+        await firebase.database().ref(`savedFilters/${currentUser.id}/${filterKey}`).update(params);
         loadAndRenderFilterPage();
         tg.showAlert(`✅ Фильтр сохранён: ${buildFilterName(params)}`);
     } catch(e) {
@@ -4038,6 +4146,24 @@ function openProfile() {
     const transferBtn = document.getElementById('adminTransferBtn');
     if (transferBtn) {
         transferBtn.style.display = isAdmin() ? 'inline-flex' : 'none';
+    }
+
+    // Статус фильтров уведомлений
+    const filtersStatusEl = document.getElementById('filtersStatus');
+    if (filtersStatusEl) {
+        firebase.database().ref(`savedFilters/${currentUser.id}`).once('value').then(snap => {
+            const filtersObj = snap.val();
+            const now = new Date();
+            const entries = filtersObj ? Object.values(filtersObj).filter(Boolean) : [];
+            const activeCount = entries.filter(f => f.expiresAt && new Date(f.expiresAt) > now).length;
+            if (activeCount > 0) {
+                filtersStatusEl.textContent = `${activeCount} активн.`;
+                filtersStatusEl.classList.add('active');
+            } else {
+                filtersStatusEl.textContent = entries.length > 0 ? 'Истекли' : 'Настроить';
+                filtersStatusEl.classList.remove('active');
+            }
+        }).catch(() => {});
     }
 
     openPageWithLock('profilePage');
