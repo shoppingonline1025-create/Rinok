@@ -2607,60 +2607,90 @@ function togglePremium() {
     content.style.display = isOpen ? 'none' : 'block';
 }
 
-// ─── Сохранённые фильтры / уведомления ────────────────────────
+// ─── Уведомления по фильтру (платная функция) ─────────────────
 
-const MAX_FILTERS = 3;
+// Ключ в Firebase где хранится единственный фильтр пользователя
+const FILTER_KEY = 'main';
 
 function openFiltersPage() {
     openPageWithLock('filtersPage');
-    loadAndRenderFilters();
+    loadAndRenderFilterPage();
 }
 
-async function loadAndRenderFilters() {
-    const container = document.getElementById('filtersListContainer');
-    if (!container) return;
-    container.innerHTML = '<div style="color:var(--text-secondary);text-align:center;padding:20px">Загрузка...</div>';
+async function loadAndRenderFilterPage() {
+    const content = document.getElementById('filtersPageContent');
+    if (!content) return;
+    content.innerHTML = '<div style="color:var(--text-secondary);text-align:center;padding:40px">Загрузка...</div>';
     try {
-        const snapshot = await firebase.database().ref(`savedFilters/${currentUser.id}`).get();
-        renderFiltersList(snapshot.val());
+        const snapshot = await firebase.database().ref(`savedFilters/${currentUser.id}/${FILTER_KEY}`).get();
+        renderFilterPage(snapshot.val());
     } catch(e) {
-        container.innerHTML = '<div style="color:var(--text-secondary);text-align:center;padding:20px">Ошибка загрузки</div>';
+        content.innerHTML = '<div style="color:var(--text-secondary);text-align:center;padding:40px">Ошибка загрузки</div>';
     }
 }
 
-function renderFiltersList(filters) {
-    const container = document.getElementById('filtersListContainer');
-    const addBtn = document.querySelector('.filter-add-btn');
-    if (!filters || Object.keys(filters).length === 0) {
-        container.innerHTML = '<div class="filters-empty">🔔 Фильтры не созданы.<br><br>Добавьте фильтр — и когда кто-то разместит подходящее объявление, вы получите уведомление в Telegram.</div>';
-        if (addBtn) addBtn.style.display = '';
+function renderFilterPage(f) {
+    const content = document.getElementById('filtersPageContent');
+    const now = new Date();
+    const isActive = f && f.expiresAt && new Date(f.expiresAt) > now;
+
+    // Обновляем статус в premium-панели
+    const filtersStatus = document.getElementById('filtersStatus');
+    if (filtersStatus) filtersStatus.textContent = isActive ? 'Активна' : 'Настроить';
+
+    if (!isActive) {
+        // Нет активной подписки
+        content.innerHTML = `
+            <div class="filters-empty" style="margin-bottom:24px">
+                🔔 Получайте уведомление в Telegram когда кто-то разместит объявление по вашему фильтру.<br><br>
+                Работает даже когда приложение закрыто.
+            </div>
+            <div class="filter-plan-card" onclick="buyFilterSub(3, 50)">
+                <div class="filter-plan-price">50 руб</div>
+                <div class="filter-plan-period">3 дня</div>
+            </div>
+            <div class="filter-plan-card filter-plan-card--best" onclick="buyFilterSub(30, 200)">
+                <div class="filter-plan-badge">Выгоднее</div>
+                <div class="filter-plan-price">200 руб</div>
+                <div class="filter-plan-period">30 дней</div>
+            </div>
+            <div style="text-align:center;font-size:12px;color:var(--text-secondary);margin-top:12px">
+                Баланс: ${currentUser.balance || 0} руб
+            </div>`;
         return;
     }
-    const entries = Object.entries(filters);
-    container.innerHTML = entries.map(([id, f]) => {
-        const params = [];
-        if (f.category) params.push(categoryNames[f.category] || f.category);
-        if (f.brand) params.push(f.brand);
-        if (f.model) params.push(f.model);
-        if (f.yearFrom || f.yearTo) params.push(`${f.yearFrom || '?'}–${f.yearTo || '?'} г.`);
-        if (f.priceFrom || f.priceTo) params.push(`${fmt(f.priceFrom || 0)}–${f.priceTo ? fmt(f.priceTo) : '∞'} руб`);
-        if (f.city) params.push(`📍 ${f.city}`);
-        return `<div class="filter-card">
+
+    // Есть активная подписка
+    const expiresDate = formatDate(f.expiresAt);
+    const params = buildFilterSummary(f);
+
+    const hasParams = f.brand || f.category || f.city || f.priceFrom || f.priceTo || f.yearFrom || f.yearTo;
+
+    content.innerHTML = `
+        <div class="filter-status-card">
+            <div class="filter-status-active">🟢 Активна до ${expiresDate}</div>
+            ${f.lastNotifiedAt && f.lastNotifiedAt !== f.createdAt
+                ? `<div style="font-size:12px;color:var(--text-secondary);margin-top:4px">Последнее уведомление: ${formatDate(f.lastNotifiedAt)}</div>`
+                : ''}
+        </div>
+
+        ${hasParams ? `
+        <div class="filter-card" style="margin-bottom:12px">
             <div class="filter-card-info">
-                <div class="filter-card-name">${f.name || buildFilterName(f)}</div>
-                <div class="filter-card-params">${params.join(' · ') || 'Все объявления'}</div>
-                <div class="filter-card-meta">🟢 Активен${f.lastNotifiedAt && f.lastNotifiedAt !== f.createdAt ? ` · уведомление: ${formatDate(f.lastNotifiedAt)}` : ''}</div>
+                <div class="filter-card-name">${buildFilterName(f)}</div>
+                <div class="filter-card-params">${params}</div>
             </div>
-            <button class="filter-card-delete" onclick="deleteFilter('${id}')">🗑</button>
-        </div>`;
-    }).join('');
-    if (addBtn) addBtn.style.display = entries.length >= MAX_FILTERS ? 'none' : '';
-    if (entries.length >= MAX_FILTERS) {
-        container.innerHTML += `<div style="text-align:center;color:var(--text-secondary);font-size:13px;margin-top:8px">Максимум ${MAX_FILTERS} фильтра</div>`;
-    }
-    // Обновляем статус в premium панели
-    const filtersStatus = document.getElementById('filtersStatus');
-    if (filtersStatus) filtersStatus.textContent = `${entries.length} из ${MAX_FILTERS}`;
+        </div>` : `
+        <div class="filters-empty" style="padding:16px;margin-bottom:12px">
+            ⚙️ Фильтр не настроен.<br>Укажите параметры чтобы получать уведомления.
+        </div>`}
+
+        <button class="filter-add-btn" onclick="openFilterForm()">
+            ${hasParams ? '✏️ Изменить фильтр' : '⚙️ Настроить фильтр'}
+        </button>
+        <button class="filter-renew-btn" onclick="renewFilterSub()">
+            🔄 Продлить подписку
+        </button>`;
 }
 
 function buildFilterName(f) {
@@ -2671,10 +2701,86 @@ function buildFilterName(f) {
     return parts.join(' ') || 'Все объявления';
 }
 
+function buildFilterSummary(f) {
+    const parts = [];
+    if (f.category) parts.push(categoryNames[f.category] || f.category);
+    if (f.brand) parts.push(f.brand);
+    if (f.model) parts.push(f.model);
+    if (f.yearFrom || f.yearTo) parts.push(`${f.yearFrom || '?'}–${f.yearTo || '?'} г.`);
+    if (f.priceFrom || f.priceTo) parts.push(`${fmt(f.priceFrom || 0)}–${f.priceTo ? fmt(f.priceTo) : '∞'} руб`);
+    if (f.city) parts.push(`📍 ${f.city}`);
+    return parts.join(' · ') || 'Все объявления';
+}
+
+async function buyFilterSub(days, price) {
+    if (!deductBalance(price, 'filter_sub', {days, price})) return;
+
+    const now = new Date();
+    // Если уже есть активная подписка — продлеваем от текущей даты окончания
+    let snapshot;
+    try { snapshot = await firebase.database().ref(`savedFilters/${currentUser.id}/${FILTER_KEY}`).get(); } catch(e) {}
+    const existing = snapshot?.val();
+    const currentExpiry = existing?.expiresAt && new Date(existing.expiresAt) > now
+        ? new Date(existing.expiresAt)
+        : now;
+
+    const expiresAt = new Date(currentExpiry.getTime() + days * 24 * 60 * 60 * 1000).toISOString();
+
+    const filterData = {
+        ...(existing || {}),
+        active: true,
+        expiresAt,
+        createdAt: existing?.createdAt || now.toISOString(),
+        lastNotifiedAt: existing?.lastNotifiedAt || now.toISOString(),
+    };
+
+    try {
+        await firebase.database().ref(`savedFilters/${currentUser.id}/${FILTER_KEY}`).set(filterData);
+        saveUser();
+        loadAndRenderFilterPage();
+        tg.showAlert(`✅ Подписка активирована на ${days} дней!\nСрок действия до: ${formatDate(expiresAt)}\n\nНастройте фильтр чтобы получать уведомления.`);
+    } catch(e) {
+        // Возвращаем деньги если Firebase недоступен
+        currentUser.balance = (currentUser.balance || 0) + price;
+        saveUser();
+        tg.showAlert('Ошибка активации. Попробуйте ещё раз.');
+    }
+}
+
+function renewFilterSub() {
+    try {
+        tg.showPopup({
+            title: '🔄 Продлить подписку',
+            message: `Текущий баланс: ${currentUser.balance || 0} руб`,
+            buttons: [
+                {id: '3', type: 'default', text: '50 руб — 3 дня'},
+                {id: '30', type: 'default', text: '200 руб — 30 дней'},
+                {id: 'cancel', type: 'cancel', text: 'Отмена'}
+            ]
+        }, (btn) => {
+            if (btn === '3') buyFilterSub(3, 50);
+            else if (btn === '30') buyFilterSub(30, 200);
+        });
+    } catch(e) {
+        buyFilterSub(3, 50);
+    }
+}
+
 function openFilterForm() {
-    ['filterCategory','filterBrand','filterModel','filterYearFrom','filterYearTo','filterPriceFrom','filterPriceTo','filterCity']
-        .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-    document.getElementById('filterFormModal').style.display = 'flex';
+    // Заполняем форму текущими значениями если они есть
+    firebase.database().ref(`savedFilters/${currentUser.id}/${FILTER_KEY}`).get().then(snap => {
+        const f = snap.val() || {};
+        const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+        set('filterCategory', f.category);
+        set('filterBrand', f.brand);
+        set('filterModel', f.model);
+        set('filterYearFrom', f.yearFrom || '');
+        set('filterYearTo', f.yearTo || '');
+        set('filterPriceFrom', f.priceFrom || '');
+        set('filterPriceTo', f.priceTo || '');
+        set('filterCity', f.city);
+        document.getElementById('filterFormModal').style.display = 'flex';
+    });
 }
 
 function closeFilterForm() {
@@ -2682,54 +2788,30 @@ function closeFilterForm() {
 }
 
 async function submitFilterForm() {
-    const filter = {
-        category:   document.getElementById('filterCategory').value || '',
-        brand:      document.getElementById('filterBrand').value.trim() || '',
-        model:      document.getElementById('filterModel').value.trim() || '',
-        yearFrom:   Number(document.getElementById('filterYearFrom').value) || 0,
-        yearTo:     Number(document.getElementById('filterYearTo').value) || 0,
-        priceFrom:  Number(document.getElementById('filterPriceFrom').value) || 0,
-        priceTo:    Number(document.getElementById('filterPriceTo').value) || 0,
-        city:       document.getElementById('filterCity').value.trim() || '',
-        active:     true,
-        createdAt:  new Date().toISOString(),
-        lastNotifiedAt: new Date().toISOString(),
+    const params = {
+        category:  document.getElementById('filterCategory').value || '',
+        brand:     document.getElementById('filterBrand').value.trim() || '',
+        model:     document.getElementById('filterModel').value.trim() || '',
+        yearFrom:  Number(document.getElementById('filterYearFrom').value) || 0,
+        yearTo:    Number(document.getElementById('filterYearTo').value) || 0,
+        priceFrom: Number(document.getElementById('filterPriceFrom').value) || 0,
+        priceTo:   Number(document.getElementById('filterPriceTo').value) || 0,
+        city:      document.getElementById('filterCity').value.trim() || '',
     };
-    filter.name = buildFilterName(filter);
 
-    if (!filter.category && !filter.brand && !filter.city && !filter.priceFrom && !filter.priceTo) {
+    if (!params.category && !params.brand && !params.city && !params.priceFrom && !params.priceTo) {
         tg.showAlert('Укажите хотя бы одно условие фильтра');
         return;
     }
+
     try {
-        const snapshot = await firebase.database().ref(`savedFilters/${currentUser.id}`).get();
-        const existing = snapshot.val();
-        if (existing && Object.keys(existing).length >= MAX_FILTERS) {
-            tg.showAlert(`Максимум ${MAX_FILTERS} фильтра. Удалите один чтобы добавить новый.`);
-            return;
-        }
-        await firebase.database().ref(`savedFilters/${currentUser.id}`).push(filter);
+        // Обновляем только параметры, не трогая expiresAt и другие служебные поля
+        await firebase.database().ref(`savedFilters/${currentUser.id}/${FILTER_KEY}`).update(params);
         closeFilterForm();
-        loadAndRenderFilters();
-        tg.showAlert(`✅ Фильтр «${filter.name}» создан!\nБудем уведомлять вас о новых объявлениях.`);
+        loadAndRenderFilterPage();
+        tg.showAlert(`✅ Фильтр сохранён!\nБудем уведомлять о новых: ${buildFilterName(params)}`);
     } catch(e) {
         tg.showAlert('Ошибка сохранения. Попробуйте ещё раз.');
-    }
-}
-
-async function deleteFilter(filterId) {
-    const doDelete = async () => {
-        await firebase.database().ref(`savedFilters/${currentUser.id}/${filterId}`).remove();
-        loadAndRenderFilters();
-    };
-    try {
-        tg.showPopup({
-            title: 'Удалить фильтр?',
-            message: 'Уведомления по этому фильтру перестанут приходить.',
-            buttons: [{id:'yes', type:'destructive', text:'Удалить'}, {id:'no', type:'cancel', text:'Отмена'}]
-        }, (btn) => { if (btn === 'yes') doDelete(); });
-    } catch(e) {
-        if (confirm('Удалить фильтр?')) doDelete();
     }
 }
 

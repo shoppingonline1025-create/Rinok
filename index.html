@@ -714,17 +714,13 @@
 <script src="app.js?v=7.4"></script>
 
 <!-- Страница "Мои фильтры" -->
-<div id="filtersPage" class="profile-page" style="display:none">
+<div id="filtersPage" class="profile-page">
 <div class="detail-header">
 <button class="back-button" onclick="closePage('filtersPage')">← Назад</button>
-<span style="position:absolute;left:50%;transform:translateX(-50%);font-weight:600;font-size:16px">🔔 Мои фильтры</span>
+<span style="position:absolute;left:50%;transform:translateX(-50%);font-weight:600;font-size:16px">🔔 Уведомления</span>
 </div>
 <div style="padding:16px 16px 32px">
-<p style="color:var(--text-secondary);font-size:14px;margin:0 0 20px;line-height:1.5">
-Получайте уведомление в Telegram когда появится новое объявление по вашему фильтру
-</p>
-<div id="filtersListContainer"></div>
-<button class="filter-add-btn" onclick="openFilterForm()">+ Добавить фильтр</button>
+<div id="filtersPageContent"></div>
 </div>
 </div>
 

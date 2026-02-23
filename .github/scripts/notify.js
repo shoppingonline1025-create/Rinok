@@ -111,6 +111,11 @@ async function main() {
 
         for (const [filterId, filter] of Object.entries(filtersObj)) {
             if (!filter || filter.active === false) continue;
+            // Проверяем срок действия подписки
+            if (filter.expiresAt && new Date(filter.expiresAt) < new Date()) {
+                console.log(`⏰ Подписка истекла у пользователя ${userId}`);
+                continue;
+            }
 
             // Смотрим только объявления новее этой метки
             const since = filter.lastNotifiedAt
