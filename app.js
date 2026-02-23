@@ -111,6 +111,33 @@ async function uploadPhotosToCloudinary(base64Photos, onProgress) {
 }
 
 /**
+ * Загрузка видео в Cloudinary
+ * @param {File} file - видеофайл
+ * @returns {Promise<string>} - URL загруженного видео
+ */
+async function uploadVideoToCloudinary(file) {
+    const url = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/video/upload`;
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+    formData.append('folder', 'cars_video');
+    try {
+        const response = await fetch(url, { method: 'POST', body: formData });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        if (data.secure_url) {
+            console.log('✅ Cloudinary video upload:', data.secure_url);
+            return data.secure_url;
+        } else {
+            throw new Error(data.error?.message || 'Upload failed');
+        }
+    } catch (error) {
+        console.error('❌ Cloudinary video upload error:', error);
+        throw error;
+    }
+}
+
+/**
  * Оптимизация URL Cloudinary — добавляет трансформации
  * @param {string} url - оригинальный URL
  * @param {number} width - желаемая ширина (по умолчанию 400)
@@ -1438,6 +1465,12 @@ function showDetail(id) {
                 <div class="detail-section-title">Описание</div>
                 <div>${c.description}</div>
             </div>
+            ${c.video ? `
+            <div class="detail-section">
+                <div class="detail-section-title">Видео</div>
+                <video src="${c.video}" controls playsinline style="width:100%;border-radius:12px;max-height:340px;background:#000;"></video>
+            </div>
+            ` : ''}
             <div class="detail-section">
                 <div class="detail-section-title">Продавец</div>
                 <div class="seller-info">
@@ -1910,17 +1943,24 @@ function handlePhotos(e) {
     readNext(0);
 }
 
-function handleVideo(e) {
+async function handleVideo(e) {
     const file = e.target.files[0];
     if (!file) return;
-    
-    const reader = new FileReader();
-    reader.onload = function(event) {
-        uploadedVideo = event.target.result;
-        document.getElementById('videoPreview').innerHTML = 
-            `<div class="file-preview-item"><video src="${event.target.result}"></video><button type="button" class="file-preview-remove" onclick="removeVideo()">×</button></div>`;
-    };
-    reader.readAsDataURL(file);
+
+    document.getElementById('videoPreview').innerHTML =
+        `<div class="file-preview-item" style="padding:16px;text-align:center;color:var(--text-secondary);">⏳ Загрузка видео...</div>`;
+
+    try {
+        const url = await uploadVideoToCloudinary(file);
+        uploadedVideo = url;
+        document.getElementById('videoPreview').innerHTML =
+            `<div class="file-preview-item"><video src="${url}" controls style="width:100%;border-radius:8px;"></video><button type="button" class="file-preview-remove" onclick="removeVideo()">×</button></div>`;
+    } catch (err) {
+        uploadedVideo = null;
+        document.getElementById('video').value = '';
+        document.getElementById('videoPreview').innerHTML = '';
+        tg.showAlert('Ошибка загрузки видео. Проверьте интернет и попробуйте ещё раз.');
+    }
 }
 
 function removePhoto(idx) {
