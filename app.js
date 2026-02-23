@@ -543,6 +543,7 @@ let currentSection = 'all';
 let topExpanded = false;
 let newExpanded = false;
 let allExpanded = false;
+let topRotationIds = []; // IDs объявлений в автоматической ротации Топа
 
 // Пагинация
 const ITEMS_PER_PAGE = 20;
@@ -641,7 +642,9 @@ function toggleTopAll() {
 
 function renderExpandedTop() {
     let filtered = getFilteredCars();
-    let top = filtered.filter(c => c.isTop);
+    const paidTop     = filtered.filter(c => c.isTop);
+    const rotationTop = filtered.filter(c => !c.isTop && topRotationIds.includes(c.id));
+    let top = [...paidTop, ...rotationTop];
     const totalPages = Math.ceil(top.length / ITEMS_PER_PAGE);
     
     const startIndex = (topCurrentPage - 1) * ITEMS_PER_PAGE;
@@ -738,7 +741,7 @@ function toggleAllAll() {
 
 function renderExpandedAll() {
     let filtered = getFilteredCars();
-    let topIds = filtered.filter(c => c.isTop).map(c => c.id);
+    let topIds = filtered.filter(c => c.isTop || topRotationIds.includes(c.id)).map(c => c.id);
     let newIds = filtered.filter(c => isNew(c.createdAt)).map(c => c.id);
     let allCars = filtered.filter(c => !topIds.includes(c.id) && !newIds.includes(c.id))
         .sort((a, b) => new Date(getSortDate(b)) - new Date(getSortDate(a)));
@@ -1167,9 +1170,11 @@ function getFilteredCars() {
 function render() {
     let filtered = getFilteredCars();
     
-    let top = filtered.filter(c => c.isTop);
+    const paidTop      = filtered.filter(c => c.isTop);
+    const rotationTop  = filtered.filter(c => !c.isTop && topRotationIds.includes(c.id));
+    let top = [...paidTop, ...rotationTop];
     let newCars = filtered.filter(c => isNew(c.createdAt)).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    
+
     // Все остальные объявления (не топ и не новые)
     let topIds = top.map(c => c.id);
     let newIds = newCars.map(c => c.id);
@@ -2708,6 +2713,62 @@ function cleanExpiredTempTops() {
     }
 }
 
+// ─── РОТАЦИЯ ТОПА ─────────────────────────────────────────────────────────────
+const TOP_ROTATION_INTERVAL = 6 * 60 * 60 * 1000; // 6 часов в мс
+const TOP_ROTATION_COUNT    = 10;
+
+// Условия попадания в ротацию: 6 фото + видео + описание ≥ 50 символов + не платный закреп
+function isEligibleForRotation(car) {
+    return Array.isArray(car.photos) && car.photos.length >= 6
+        && !!car.video
+        && typeof car.description === 'string' && car.description.length >= 50
+        && !car.isTop;
+}
+
+// Выбрать 10 случайных подходящих объявлений и сохранить в Firebase
+function runTopRotation() {
+    if (!_fbDb) return;
+    const eligible = cars.filter(isEligibleForRotation);
+    // Перемешиваем (Fisher-Yates)
+    for (let i = eligible.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [eligible[i], eligible[j]] = [eligible[j], eligible[i]];
+    }
+    const selected = eligible.slice(0, TOP_ROTATION_COUNT).map(c => c.id);
+    const nextRotationAt = new Date(Date.now() + TOP_ROTATION_INTERVAL).toISOString();
+    topRotationIds = selected;
+    firebase.database().ref('topRotation').set({ ids: selected, nextRotationAt })
+        .catch(e => console.warn('topRotation save error:', e));
+    render();
+}
+
+// Подписаться на ротацию из Firebase; обновить при истечении
+function loadTopRotation() {
+    if (!_fbDb) return;
+    firebase.database().ref('topRotation').on('value', (snap) => {
+        const data = snap.val();
+        const now = new Date();
+        if (!data || !data.nextRotationAt || new Date(data.nextRotationAt) <= now) {
+            runTopRotation();
+        } else {
+            // Восстанавливаем актуальные IDs (Firebase может хранить как объект)
+            topRotationIds = Array.isArray(data.ids) ? data.ids : Object.values(data.ids || {});
+            render();
+        }
+    });
+    // Раз в час проверяем — вдруг никто не открывал приложение дольше 6 часов
+    setInterval(() => {
+        if (!_fbDb) return;
+        firebase.database().ref('topRotation').once('value').then(snap => {
+            const data = snap.val();
+            if (!data || !data.nextRotationAt || new Date(data.nextRotationAt) <= new Date()) {
+                runTopRotation();
+            }
+        });
+    }, 60 * 60 * 1000);
+}
+// ──────────────────────────────────────────────────────────────────────────────
+
 // Вспомогательная: время до истечения
 function getTimeLeft(isoDate) {
     const diff = new Date(isoDate) - new Date();
@@ -4069,6 +4130,9 @@ document.getElementById('searchInput').addEventListener('input', function(e) {
     await syncFromFirebase();
     // После этого syncFromFirebase продолжает слушать изменения в реальном времени
     // setInterval больше не нужен — WebSocket сам пушит обновления
+
+    // Запускаем ротацию Топа (каждые 6ч — 10 случайных объявлений с 6 фото + видео + описание ≥50)
+    loadTopRotation();
 
     // Убираем лоадер и показываем контент
     loadingEl.remove();
