@@ -167,6 +167,11 @@ body {
     transform: scale(0.98);
 }
 
+.car-card--highlighted {
+    border: 2px solid #f5a623;
+    box-shadow: 0 0 10px rgba(245, 166, 35, 0.45);
+}
+
 .car-image {
     width: 100%;
     height: 140px;

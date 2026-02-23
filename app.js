@@ -1254,7 +1254,9 @@ function makeCard(c) {
         </div>`;
     }
     
-    return `<div class="car-card" onclick="showDetail(${c.id})">
+    const isHighlighted = c.highlightExpiresAt && new Date(c.highlightExpiresAt) > new Date();
+    return `<div class="car-card${isHighlighted ? ' car-card--highlighted' : ''}" onclick="showDetail(${c.id})">
+        ${isHighlighted ? '<div style="font-size:11px;color:#f5a623;text-align:right;padding:4px 8px 0;font-weight:600;">🏷️ Выделено</div>' : ''}
         ${imageHtml}
         <div class="car-info">
             ${c.category === 'parts' ? `
@@ -2711,6 +2713,15 @@ function cleanExpiredTempTops() {
         currentUser.tempTop = null;
         saveUser();
     }
+    // Чистим истёкшие подсветки на объявлениях
+    cars = cars.map(car => {
+        if (car.highlightExpiresAt && new Date(car.highlightExpiresAt) <= now) {
+            delete car.highlightExpiresAt;
+            pushCarToFirebase(car);
+            changed = true;
+        }
+        return car;
+    });
 }
 
 // ─── РОТАЦИЯ ТОПА ─────────────────────────────────────────────────────────────
@@ -3070,6 +3081,12 @@ function renderAchievements() {
     const tempTopActive = tt?.carId && new Date(tt?.expiresAt) > new Date();
     const tempTopLeft   = tempTopActive ? getTimeLeft(tt.expiresAt) : null;
 
+    // Статус выделения: ищем объявление пользователя с активной подсветкой
+    const highlightedCar = cars.find(c => String(c.userId) === String(currentUser.id)
+        && c.highlightExpiresAt && new Date(c.highlightExpiresAt) > new Date());
+    const highlightActive = !!highlightedCar;
+    const highlightLeft   = highlightActive ? getTimeLeft(highlightedCar.highlightExpiresAt) : null;
+
     const SHOP_ITEMS = [
         {
             id: 'boost12h',
@@ -3090,6 +3107,16 @@ function renderAchievements() {
             active: tempTopActive,
             activeLabel: tempTopLeft ? `Активно · осталось ${tempTopLeft}` : 'Активно',
             action: "buyTempTop()"
+        },
+        {
+            id: 'highlight',
+            icon: '🏷️',
+            title: 'Выделение объявления на 24 часа',
+            desc: 'Цветная рамка и подсветка карточки в ленте. Выделяется среди обычных объявлений.',
+            cost: 200,
+            active: highlightActive,
+            activeLabel: highlightLeft ? `Активно · осталось ${highlightLeft}` : 'Активно',
+            action: "buyHighlight()"
         }
     ];
 
@@ -3305,6 +3332,78 @@ function chooseTempTopListing() {
         renderAchievements();
     });
 }
+
+// ─── ВЫДЕЛЕНИЕ ОБЪЯВЛЕНИЯ ─────────────────────────────────────────────────────
+function activateHighlight(carId, skipConfirm = false) {
+    const COST = 200;
+    if (!skipConfirm && (currentUser.ratingPoints || 0) < COST) {
+        tg.showAlert(`Недостаточно очков.\nНужно: ${COST} · У вас: ${currentUser.ratingPoints || 0}`);
+        return;
+    }
+    const carIdx = cars.findIndex(c => c.id === carId);
+    if (carIdx === -1) return;
+    const expiresAt = new Date(Date.now() + 24 * 3600000).toISOString();
+    cars[carIdx].highlightExpiresAt = expiresAt;
+    pushCarToFirebase(cars[carIdx]);
+    DB.saveCars(cars);
+    render();
+    const expStr = new Date(expiresAt).toLocaleString('ru-RU', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
+    tg.showAlert(`✅ Объявление выделено до ${expStr}!\nОстаток очков: ${currentUser.ratingPoints}`);
+    renderAchievements();
+    renderRatingLevel();
+}
+
+function buyHighlight() {
+    const pts = currentUser.ratingPoints || 0;
+    const COST = 200;
+    const myListings = cars.filter(c => String(c.userId) === String(currentUser.id));
+
+    if (!myListings.length) {
+        tg.showAlert('У вас нет активных объявлений');
+        return;
+    }
+    if (pts < COST) {
+        tg.showAlert(`Недостаточно очков.\nНужно: ${COST} · У вас: ${pts}`);
+        return;
+    }
+
+    const doActivate = (carId) => {
+        currentUser.ratingPoints -= COST;
+        saveUser();
+        activateHighlight(carId, true);
+    };
+
+    if (myListings.length === 1) {
+        const car = myListings[0];
+        const title = (car.partTitle || `${car.brand} ${car.model}`).trim();
+        tg.showPopup({
+            title: '🏷️ Выделение объявления',
+            message: `Списать ${COST} очков?\n\n«${title}»\n✓ Цветная рамка на 24 часа\n✓ Ваш баланс после: ${pts - COST} очков`,
+            buttons: [
+                {id: 'yes', type: 'default', text: `Купить за ${COST} очков`},
+                {id: 'no',  type: 'cancel',  text: 'Отмена'}
+            ]
+        }, (btn) => { if (btn === 'yes') doActivate(car.id); });
+        return;
+    }
+
+    // Несколько объявлений — выбор
+    const buttons = myListings.slice(0, 5).map(c => ({
+        id: String(c.id),
+        type: 'default',
+        text: `${(c.partTitle || c.brand + ' ' + (c.model||'')).trim()} · ${fmt(c.price)} ${c.currency}`.substring(0, 40)
+    }));
+    buttons.push({id: 'cancel', type: 'cancel', text: 'Отмена'});
+    tg.showPopup({
+        title: '🏷️ Выберите объявление',
+        message: `Стоимость: ${COST} очков · Срок: 24 часа\nВаш баланс после: ${pts - COST} очков`,
+        buttons
+    }, (btn) => {
+        if (btn === 'cancel' || !btn) return;
+        doActivate(Number(btn));
+    });
+}
+// ──────────────────────────────────────────────────────────────────────────────
 
 function _setText(id, val) {
     const el = document.getElementById(id);
