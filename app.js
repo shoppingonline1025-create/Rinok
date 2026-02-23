@@ -2826,14 +2826,21 @@ function openAutoBoostModal() {
         text: `${(c.partTitle || c.brand + ' ' + (c.model||'')).trim()} · ${fmt(c.price)} ${c.currency}`.substring(0, 40)
     }));
     buttons.push({id: 'cancel', type: 'cancel', text: 'Отмена'});
-    tg.showPopup({
-        title: '🤖 Выберите объявление',
-        message: 'Для какого объявления активировать автоподнятие?',
-        buttons
-    }, (btn) => {
-        if (btn === 'cancel' || !btn) return;
-        activateAutoBoost(Number(btn));
-    });
+    try {
+        tg.showPopup({
+            title: '🤖 Выберите объявление',
+            message: 'Для какого объявления активировать автоподнятие?',
+            buttons
+        }, (btn) => {
+            if (btn === 'cancel' || !btn) return;
+            activateAutoBoost(Number(btn));
+        });
+    } catch(e) {
+        const titles = myListings.slice(0, 5).map((c, i) =>
+            `${i+1}. ${(c.partTitle || c.brand + ' ' + (c.model||'')).trim()}`).join('\n');
+        const idx = parseInt(prompt(`Выберите номер:\n${titles}`)) - 1;
+        if (idx >= 0 && idx < myListings.length) activateAutoBoost(myListings[idx].id);
+    }
 }
 
 function activateAutoBoost(carId) {
@@ -2966,56 +2973,65 @@ function disableAutoBoost(carId) {
 
 // ─── ЗАКРЕП В РЕЗУЛЬТАТАХ ПОИСКА ─────────────────────────────────────────────
 function buySearchPin() {
+    if (!currentUser) { alert('Ошибка: пользователь не загружен'); return; }
     const COST = 50;
     const myListings = cars.filter(c => String(c.userId) === String(currentUser.id));
+
     if (!myListings.length) {
         tg.showAlert('У вас нет активных объявлений');
         return;
     }
     if ((currentUser.balance || 0) < COST) {
-        tg.showPopup({
-            title: 'Недостаточно средств',
-            message: `Стоимость: ${COST} руб\nВаш баланс: ${currentUser.balance || 0} руб\n\nПополнить баланс?`,
-            buttons: [
-                {id: 'topup',  type: 'default', text: 'Пополнить'},
-                {id: 'cancel', type: 'cancel',  text: 'Отмена'}
-            ]
-        }, (b) => { if (b === 'topup') openTopUp(); });
+        try {
+            tg.showPopup({
+                title: 'Недостаточно средств',
+                message: `Стоимость: ${COST} руб\nВаш баланс: ${currentUser.balance || 0} руб\n\nПополнить баланс?`,
+                buttons: [
+                    {id: 'topup',  type: 'default', text: 'Пополнить'},
+                    {id: 'cancel', type: 'cancel',  text: 'Отмена'}
+                ]
+            }, (b) => { if (b === 'topup') openTopUp(); });
+        } catch(e) {
+            if (confirm(`Недостаточно средств (${COST} руб).\nПополнить баланс?`)) openTopUp();
+        }
         return;
     }
     if (myListings.length === 1) {
         _doSearchPin(myListings[0].id, COST);
         return;
     }
-    const buttons = myListings.slice(0, 5).map(c => ({
-        id: String(c.id),
-        type: 'default',
-        text: `${(c.partTitle || c.brand + ' ' + (c.model||'')).trim()} · ${fmt(c.price)} ${c.currency}`.substring(0, 40)
-    }));
-    buttons.push({id: 'cancel', type: 'cancel', text: 'Отмена'});
-    tg.showPopup({
-        title: '📌 Закреп в поиске',
-        message: `${COST} руб / 48 часов\nВыберите объявление:`,
-        buttons
-    }, (btn) => {
-        if (btn === 'cancel' || !btn) return;
-        _doSearchPin(Number(btn), COST);
-    });
+    // Несколько объявлений — выбор через popup
+    try {
+        const buttons = myListings.slice(0, 5).map(c => ({
+            id: String(c.id),
+            type: 'default',
+            text: `${(c.partTitle || c.brand + ' ' + (c.model||'')).trim()} · ${fmt(c.price)} ${c.currency}`.substring(0, 40)
+        }));
+        buttons.push({id: 'cancel', type: 'cancel', text: 'Отмена'});
+        tg.showPopup({
+            title: '📌 Закреп в поиске',
+            message: `${COST} руб / 48 часов\nВыберите объявление:`,
+            buttons
+        }, (btn) => {
+            if (btn === 'cancel' || !btn) return;
+            _doSearchPin(Number(btn), COST);
+        });
+    } catch(e) {
+        // Fallback для браузера
+        const titles = myListings.slice(0, 5).map((c, i) =>
+            `${i+1}. ${(c.partTitle || c.brand + ' ' + (c.model||'')).trim()}`).join('\n');
+        const idx = parseInt(prompt(`Выберите номер объявления:\n${titles}`)) - 1;
+        if (idx >= 0 && idx < myListings.length) _doSearchPin(myListings[idx].id, COST);
+    }
 }
 
 function _doSearchPin(carId, cost) {
+    if (!currentUser) return;
     const car = cars.find(c => c.id === carId);
     if (!car) return;
     const carTitle = (car.partTitle || `${car.brand} ${car.model}`).trim();
-    tg.showPopup({
-        title: '📌 Закреп в поиске',
-        message: `«${carTitle}»\n\n✓ Первым в ленте по марке на 48 часов\n✓ Стоимость: ${cost} руб\nВаш баланс после: ${(currentUser.balance||0) - cost} руб`,
-        buttons: [
-            {id: 'yes',    type: 'default', text: `Купить за ${cost} руб`},
-            {id: 'cancel', type: 'cancel',  text: 'Отмена'}
-        ]
-    }, (btn) => {
-        if (btn !== 'yes') return;
+
+    const doPin = () => {
         if (!deductBalance(cost, 'searchpin', {carId, title: carTitle})) return;
         const expiresAt = new Date(Date.now() + 48 * 3600000).toISOString();
         const carIdx = cars.findIndex(c => c.id === carId);
@@ -3028,7 +3044,20 @@ function _doSearchPin(carId, cost) {
         updatePremiumStatus();
         const expStr = new Date(expiresAt).toLocaleString('ru-RU', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
         tg.showAlert(`✅ Закреплено до ${expStr}!\nОстаток: ${currentUser.balance} руб`);
-    });
+    };
+
+    try {
+        tg.showPopup({
+            title: '📌 Закреп в поиске',
+            message: `«${carTitle}»\n\n✓ Первым в ленте на 48 часов\n✓ Стоимость: ${cost} руб\nБаланс после: ${(currentUser.balance||0) - cost} руб`,
+            buttons: [
+                {id: 'yes',    type: 'default', text: `Купить за ${cost} руб`},
+                {id: 'cancel', type: 'cancel',  text: 'Отмена'}
+            ]
+        }, (btn) => { if (btn === 'yes') doPin(); });
+    } catch(e) {
+        if (confirm(`«${carTitle}»\n\nЗакрепить в поиске на 48 часов за ${cost} руб?`)) doPin();
+    }
 }
 // ──────────────────────────────────────────────────────────────────────────────
 
