@@ -2622,7 +2622,7 @@ async function loadAndRenderFilterPage() {
     if (!content) return;
     content.innerHTML = '<div style="color:var(--text-secondary);text-align:center;padding:40px">Загрузка...</div>';
     try {
-        const snapshot = await firebase.database().ref(`savedFilters/${currentUser.id}/${FILTER_KEY}`).get();
+        const snapshot = await firebase.database().ref(`savedFilters/${currentUser.id}/${FILTER_KEY}`).once('value');
         renderFilterPage(snapshot.val());
     } catch(e) {
         content.innerHTML = '<div style="color:var(--text-secondary);text-align:center;padding:40px">Ошибка загрузки</div>';
@@ -2718,7 +2718,7 @@ async function buyFilterSub(days, price) {
     const now = new Date();
     // Если уже есть активная подписка — продлеваем от текущей даты окончания
     let snapshot;
-    try { snapshot = await firebase.database().ref(`savedFilters/${currentUser.id}/${FILTER_KEY}`).get(); } catch(e) {}
+    try { snapshot = await firebase.database().ref(`savedFilters/${currentUser.id}/${FILTER_KEY}`).once('value'); } catch(e) {}
     const existing = snapshot?.val();
     const currentExpiry = existing?.expiresAt && new Date(existing.expiresAt) > now
         ? new Date(existing.expiresAt)
@@ -2768,7 +2768,7 @@ function renewFilterSub() {
 
 function openFilterForm() {
     // Заполняем форму текущими значениями если они есть
-    firebase.database().ref(`savedFilters/${currentUser.id}/${FILTER_KEY}`).get().then(snap => {
+    firebase.database().ref(`savedFilters/${currentUser.id}/${FILTER_KEY}`).once('value').then(snap => {
         const f = snap.val() || {};
         const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
         set('filterCategory', f.category);
