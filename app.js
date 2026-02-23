@@ -1196,7 +1196,7 @@ function getFilteredCars() {
                 if (c.model === filterModel) return true;
                 // Частичное совпадение - модель начинается с фильтра (для новой структуры)
                 // Например, "Accord 2.0" соответствует фильтру "Accord"
-                if (c.model.startsWith(filterModel + ' ')) return true;
+                if (c.model && c.model.startsWith(filterModel + ' ')) return true;
                 return false;
             });
             if (!matchesModel) return false;
@@ -1315,7 +1315,7 @@ function makeCard(c) {
         ${imageHtml}
         <div class="car-info">
             ${c.category === 'parts' ? `
-                <div class="car-title">${c.partTitle || (c.partType + (c.brand ? ' • ' + c.brand : ''))}</div>
+                <div class="car-title">${c.partTitle || ((c.partType || '') + (c.brand ? ' • ' + c.brand : ''))}</div>
                 <div class="car-price">${fmt(c.price)} ${c.currency}</div>
                 <div class="car-details">
                     <div><span class="detail-icon">🔧</span> ${c.partType}</div>
@@ -1323,7 +1323,7 @@ function makeCard(c) {
                     <div><span class="detail-icon">📍</span> Город: <strong>${c.city}</strong></div>
                 </div>
             ` : `
-                <div class="car-title">${c.brand} ${c.model} ${c.year}</div>
+                <div class="car-title">${c.brand || ''} ${c.model || ''} ${c.year || ''}</div>
                 <div class="car-price">${fmt(c.price)} ${c.currency}</div>
                 <div class="car-details">
                     <div><span class="detail-icon">📏</span> Пробег: <strong>${fmt(c.mileage)} км</strong></div>

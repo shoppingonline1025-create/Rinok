@@ -16,11 +16,15 @@
     --bg: #1a1a1a;
     --bg2: #2a2a2a;
     --card: #242424;
+    --card-bg: #242424;
     --text: #fff;
     --text2: #b0b0b0;
+    --text-secondary: #b0b0b0;
     --hint: #707070;
     --primary: #4a9eff;
     --border: #3a3a3a;
+    --border-color: #3a3a3a;
+    --input-bg: #2e2e2e;
 }
 
 body {
@@ -1387,14 +1391,6 @@ body {
     display: flex;
     flex-direction: column;
     gap: 0;
-}
-    border: none;
-    font-size: 14px;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
 }
 
 .edit-btn {
