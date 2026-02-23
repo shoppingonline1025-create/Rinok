@@ -1261,7 +1261,7 @@ function render() {
     }
     
     if (allCars.length > 0) {
-        allContainer.innerHTML = allCars.map(makeCard).join('');
+        allContainer.innerHTML = allCars.slice(0, 10).map(makeCard).join('');
     } else {
         allContainer.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🔍</div><div>Нет объявлений</div></div>';
     }
