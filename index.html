@@ -476,6 +476,50 @@
 </div>
 </div>
 
+<!-- PREMIUM — вынесен выше очков -->
+<div class="profile-section premium-section" style="margin:12px 16px">
+<div class="premium-section-header" onclick="togglePremium()">
+  <span class="premium-crown">👑</span>
+  <span class="premium-label">PREMIUM</span>
+  <span class="premium-arrow" id="premiumArrow">▼</span>
+</div>
+<div id="premiumContent" class="profile-section-content" style="display:none">
+<div class="premium-options">
+
+<div class="premium-option premium-option--boost" onclick="openAutoBoostModal()">
+<div class="premium-option-icon">🤖</div>
+<div class="premium-option-info">
+<div class="premium-option-title">Автоподнятие</div>
+<div class="premium-option-desc">Каждые 6 часов автоматически</div>
+<div class="premium-option-price">50 руб / 3 дня &nbsp;·&nbsp; 120 руб / 10 дней</div>
+</div>
+<div class="premium-option-status" id="autoBoostStatus">Неактивна</div>
+</div>
+
+<div class="premium-option premium-option--pin" onclick="buySearchPin()">
+<div class="premium-option-icon">📌</div>
+<div class="premium-option-info">
+<div class="premium-option-title">Закреп в результатах поиска</div>
+<div class="premium-option-desc">Первым в ленте по своей марке</div>
+<div class="premium-option-price">50 руб / 48 часов</div>
+</div>
+<div class="premium-option-status" id="searchPinStatus">Неактивна</div>
+</div>
+
+<div class="premium-option premium-option--notify" onclick="openFiltersPage()">
+<div class="premium-option-icon">🔔</div>
+<div class="premium-option-info">
+<div class="premium-option-title">Уведомления</div>
+<div class="premium-option-desc">Telegram-уведомление когда появится нужное авто</div>
+<div class="premium-option-price">50 руб / 3 дня · до 5 фильтров</div>
+</div>
+<div class="premium-option-status" id="filtersStatus">Настроить</div>
+</div>
+
+</div>
+</div>
+</div>
+
 <!-- Уровень и прогресс-бар -->
 <div class="points-balance-card" id="pointsBalanceCard">
 <div class="points-balance-row">
@@ -540,48 +584,6 @@
 </div>
 </div>
 
-<div class="profile-section premium-section">
-<div class="premium-section-header" onclick="togglePremium()">
-  <span class="premium-crown">👑</span>
-  <span class="premium-label">PREMIUM</span>
-  <span class="premium-arrow" id="premiumArrow">▼</span>
-</div>
-<div id="premiumContent" class="profile-section-content" style="display:none">
-<div class="premium-options">
-
-<div class="premium-option" onclick="openAutoBoostModal()">
-<div class="premium-option-icon">🤖</div>
-<div class="premium-option-info">
-<div class="premium-option-title">Автоподнятие</div>
-<div class="premium-option-desc">Каждые 6 часов автоматически</div>
-<div class="premium-option-price">50 руб / 3 дня &nbsp;·&nbsp; 120 руб / 10 дней</div>
-</div>
-<div class="premium-option-status" id="autoBoostStatus">Неактивна</div>
-</div>
-
-<div class="premium-option" onclick="buySearchPin()">
-<div class="premium-option-icon">📌</div>
-<div class="premium-option-info">
-<div class="premium-option-title">Закреп в результатах поиска</div>
-<div class="premium-option-desc">Первым в ленте по своей марке</div>
-<div class="premium-option-price">50 руб / 48 часов</div>
-</div>
-<div class="premium-option-status" id="searchPinStatus">Неактивна</div>
-</div>
-
-<div class="premium-option" onclick="openFiltersPage()">
-<div class="premium-option-icon">🔔</div>
-<div class="premium-option-info">
-<div class="premium-option-title">Уведомления</div>
-<div class="premium-option-desc">Telegram-уведомление когда появится нужное авто</div>
-<div class="premium-option-price">50 руб / 3 дня · до 5 фильтров</div>
-</div>
-<div class="premium-option-status" id="filtersStatus">Настроить</div>
-</div>
-
-</div>
-</div>
-</div>
 
 <div class="profile-section">
 <div class="profile-section-header">📊 Статистика</div>

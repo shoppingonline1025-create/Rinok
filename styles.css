@@ -2251,6 +2251,31 @@ body {
     color: var(--primary);
 }
 
+/* Цветные акценты для каждой Premium-функции */
+.premium-option--boost {
+    border-left: 4px solid #4a9eff;
+    background: linear-gradient(135deg, rgba(74,158,255,0.1) 0%, var(--card) 60%);
+}
+.premium-option--boost .premium-option-icon {
+    filter: drop-shadow(0 0 6px rgba(74,158,255,0.6));
+}
+
+.premium-option--pin {
+    border-left: 4px solid #f5a623;
+    background: linear-gradient(135deg, rgba(245,166,35,0.1) 0%, var(--card) 60%);
+}
+.premium-option--pin .premium-option-icon {
+    filter: drop-shadow(0 0 6px rgba(245,166,35,0.6));
+}
+
+.premium-option--notify {
+    border-left: 4px solid #4caf50;
+    background: linear-gradient(135deg, rgba(76,175,80,0.1) 0%, var(--card) 60%);
+}
+.premium-option--notify .premium-option-icon {
+    filter: drop-shadow(0 0 6px rgba(76,175,80,0.6));
+}
+
 /* ============================================
    КНОПКИ ПОДНЯТИЯ В МОИ ОБЪЯВЛЕНИЯ
    ============================================ */
