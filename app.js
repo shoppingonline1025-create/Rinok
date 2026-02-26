@@ -3030,30 +3030,21 @@ function renewFilterSub() {
 }
 
 function openTopUp() {
-    // Используем нативный confirm как fallback если tg.showPopup не сработал
     try {
         tg.showPopup({
             title: '💳 Пополнение баланса',
-            message: `Текущий баланс: ${currentUser.balance || 0} руб\n\nРеальная оплата в разработке.\nДля теста нажмите "Добавить 100 руб".`,
+            message: `Текущий баланс: ${currentUser.balance || 0} руб\n\nДля пополнения напишите администратору — он зачислит рубли на ваш счёт.\n\nВаш Telegram ID: ${currentUser.id}`,
             buttons: [
-                {id: 'add100', type: 'default', text: '+ 100 руб (тест)'},
-                {id: 'add500', type: 'default', text: '+ 500 руб (тест)'},
+                {id: 'write', type: 'default', text: '✍️ Написать администратору'},
                 {id: 'cancel', type: 'cancel', text: 'Отмена'}
             ]
         }, (buttonId) => {
-            if (buttonId === 'add100') {
-                addBalance(100, 'test');
-                tg.showAlert(`✅ Баланс пополнен!\nНовый баланс: ${currentUser.balance} руб`);
-            } else if (buttonId === 'add500') {
-                addBalance(500, 'test');
-                tg.showAlert(`✅ Баланс пополнен!\nНовый баланс: ${currentUser.balance} руб`);
+            if (buttonId === 'write') {
+                tg.openTelegramLink(`https://t.me/LOVE_TIRAS?text=${encodeURIComponent(`Хочу пополнить баланс AutoMarket\nМой ID: ${currentUser.id}`)}`);
             }
         });
     } catch(e) {
-        // Fallback если tg.showPopup недоступен
-        const amount = 100;
-        addBalance(amount, 'test');
-        alert(`✅ Тест: добавлено ${amount} руб\nНовый баланс: ${currentUser.balance} руб`);
+        tg.openTelegramLink(`https://t.me/LOVE_TIRAS?text=${encodeURIComponent(`Хочу пополнить баланс AutoMarket\nМой ID: ${currentUser.id}`)}`);
     }
 }
 
