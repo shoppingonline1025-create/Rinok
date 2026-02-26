@@ -24,7 +24,8 @@
 const FIREBASE_URL = 'https://auto-market26-default-rtdb.europe-west1.firebasedatabase.app';
 
 // ─── Администратор ────────────────────────────────────────────
-const ADMIN_TELEGRAM_ID = 814278637; // Telegram ID администратора
+const ADMIN_TELEGRAM_ID  = 814278637;  // Telegram ID администратора (@LOVE_TIRAS)
+const ADMIN2_TELEGRAM_ID = 1016811865; // Второй администратор (@Evgenii_Ar)
 
 // ─── Авто-модерация: стоп-слова ───────────────────────────────
 const BANNED_WORDS = [
@@ -55,7 +56,8 @@ function containsBannedWords(text) {
 
 function isAdmin() {
     if (!currentUser) return false;
-    return String(currentUser.telegramId) === String(ADMIN_TELEGRAM_ID);
+    const tid = String(currentUser.telegramId);
+    return tid === String(ADMIN_TELEGRAM_ID) || tid === String(ADMIN2_TELEGRAM_ID);
 }
 
 
@@ -3079,11 +3081,11 @@ function openTopUp() {
             ]
         }, (buttonId) => {
             if (buttonId === 'write') {
-                tg.openTelegramLink(`https://t.me/LOVE_TIRAS?text=${encodeURIComponent(`Хочу пополнить баланс AutoMarket\nМой ID: ${currentUser.id}`)}`);
+                tg.openTelegramLink(`https://t.me/Evgenii_Ar?text=${encodeURIComponent(`Хочу пополнить баланс AutoMarket\nМой ID: ${currentUser.id}`)}`);
             }
         });
     } catch(e) {
-        tg.openTelegramLink(`https://t.me/LOVE_TIRAS?text=${encodeURIComponent(`Хочу пополнить баланс AutoMarket\nМой ID: ${currentUser.id}`)}`);
+        tg.openTelegramLink(`https://t.me/Evgenii_Ar?text=${encodeURIComponent(`Хочу пополнить баланс AutoMarket\nМой ID: ${currentUser.id}`)}`);
     }
 }
 
@@ -4536,7 +4538,7 @@ async function confirmAdminTransfer() {
     if (errEl) errEl.style.display = 'none';
 
     if (!telegramId) { showErr('Введите Telegram ID получателя'); return; }
-    if (String(telegramId) === String(ADMIN_TELEGRAM_ID)) { showErr('Нельзя переводить самому себе'); return; }
+    if (String(telegramId) === String(currentUser.telegramId)) { showErr('Нельзя переводить самому себе'); return; }
     if (!amount || amount < 1) { showErr('Введите сумму больше 0'); return; }
     if (!infoEl?.dataset?.userId) { showErr('Сначала дождитесь поиска пользователя'); return; }
 
