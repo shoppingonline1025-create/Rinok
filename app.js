@@ -2960,6 +2960,20 @@ async function buyAndSaveFilter(days, price) {
     let snapshot;
     try { snapshot = await firebase.database().ref(`savedFilters/${currentUser.id}/${filterKey}`).once('value'); } catch(e) {}
     const existing = snapshot?.val();
+
+    // Проверяем лимит только для новых фильтров
+    if (!existing) {
+        let allSnap;
+        try { allSnap = await firebase.database().ref(`savedFilters/${currentUser.id}`).once('value'); } catch(e) {}
+        const allFilters = allSnap?.val();
+        const count = allFilters ? Object.keys(allFilters).filter(k => allFilters[k]).length : 0;
+        if (count >= MAX_FILTERS) {
+            currentUser.balance = (currentUser.balance || 0) + price;
+            saveUser();
+            tg.showAlert(`Максимум ${MAX_FILTERS} фильтров на аккаунт`);
+            return;
+        }
+    }
     const currentExpiry = existing?.expiresAt && new Date(existing.expiresAt) > now
         ? new Date(existing.expiresAt) : now;
     const expiresAt = new Date(currentExpiry.getTime() + days * 24 * 60 * 60 * 1000).toISOString();

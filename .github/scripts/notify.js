@@ -122,7 +122,9 @@ async function main() {
             // Смотрим только объявления новее этой метки
             const since = filter.lastNotifiedAt
                 ? new Date(filter.lastNotifiedAt).getTime()
-                : new Date(filter.createdAt || 0).getTime();
+                : filter.createdAt
+                    ? new Date(filter.createdAt).getTime()
+                    : Date.now();
 
             const matches = cars.filter(car => {
                 if (!car.createdAt) return false;
