@@ -26,6 +26,33 @@ const FIREBASE_URL = 'https://auto-market26-default-rtdb.europe-west1.firebaseda
 // ─── Администратор ────────────────────────────────────────────
 const ADMIN_TELEGRAM_ID = 814278637; // Telegram ID администратора
 
+// ─── Авто-модерация: стоп-слова ───────────────────────────────
+const BANNED_WORDS = [
+    // Мат (базовый набор, корни слов — ловит все формы)
+    'хуй','хуе','хуя','хуё','пизд','ёбан','ебан','еблан','бляд','сука','пидор','пидар',
+    'залуп','мудак','мудил','ублюдок','уёбок','уебок','ёбнут','хуесос','долбоёб','долбоеб',
+    // Мошенничество / скам
+    'кидалово','кидала','лохотрон','развод на деньги','предоплата обязательна',
+    'перевод на карту','western union','сбербанк перевод','qiwi перевод',
+    'нигерия','принц','выигрыш','вы выиграли','ваш приз',
+    // Спам / нерелевантное
+    'казино','ставки','заработок','пассивный доход','mlm','сетевой маркетинг',
+    'кредит без','займ без','микрозайм',
+    // Оружие / незаконное
+    'оружие продам','пистолет продам','автомат продам','наркот','героин','кокаин','амфетамин',
+];
+
+function containsBannedWords(text) {
+    if (!text) return null;
+    const lower = text.toLowerCase().replace(/ё/g, 'е');
+    for (const word of BANNED_WORDS) {
+        const w = word.toLowerCase().replace(/ё/g, 'е');
+        if (lower.includes(w)) return word;
+    }
+    return null;
+}
+// ──────────────────────────────────────────────────────────────
+
 function isAdmin() {
     if (!currentUser) return false;
     return String(currentUser.telegramId) === String(ADMIN_TELEGRAM_ID);
@@ -2120,6 +2147,18 @@ async function handleSubmit(e) {
         }
     }
     
+    // ─── Проверка стоп-слов ───────────────────────────────────
+    const _descVal = document.getElementById('description')?.value || '';
+    const _titleVal = document.getElementById('partTitle')?.value || '';
+    const _checkText = `${brandValue} ${modelValue} ${_descVal} ${_titleVal}`;
+    const _banned = containsBannedWords(_checkText);
+    if (_banned) {
+        tg.showAlert('Объявление содержит запрещённые слова. Проверьте описание и исправьте текст.');
+        unblockSubmit();
+        return;
+    }
+    // ──────────────────────────────────────────────────────────
+
     // ═══════════════════════════════════════════════════════════
     // ЗАГРУЗКА ФОТО В CLOUDINARY
     // ═══════════════════════════════════════════════════════════
