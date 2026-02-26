@@ -584,7 +584,6 @@ let currentUser = null;
 let currentEditField = '';
 let formSelectedBrand = '';
 let formSelectedModel = '';
-let formSelectedVariant = ''; // Новая переменная для версии/комплектации
 let formSelectedPartType = '';
 let editingCarId = null;
 
@@ -2277,7 +2276,6 @@ async function handleSubmit(e) {
     uploadedVideo = null;
     formSelectedBrand = '';
     formSelectedModel = '';
-    formSelectedVariant = '';
     formSelectedPartType = '';
     document.getElementById('photoPreview').innerHTML = '';
     document.getElementById('videoPreview').innerHTML = '';
@@ -4732,7 +4730,6 @@ function updateFormBrandOptions() {
         document.getElementById('formModelInput').placeholder = 'Сначала выберите марку';
         formSelectedBrand = '';
         formSelectedModel = '';
-        formSelectedVariant = '';
         document.getElementById('formBrand').value = '';
         document.getElementById('formModel').value = '';
         document.getElementById('formBrandInput').value = '';
@@ -4744,7 +4741,6 @@ function updateFormBrandOptions() {
     document.getElementById('formModelInput').placeholder = 'Сначала выберите марку';
     formSelectedBrand = '';
     formSelectedModel = '';
-    formSelectedVariant = '';
     formSelectedPartType = '';
     document.getElementById('formBrand').value = '';
     document.getElementById('partTypeInput').value = '';
@@ -4792,7 +4788,6 @@ function confirmFormBrand() {
     document.getElementById('formBrandInput').value = formSelectedBrand;
     
     formSelectedModel = '';
-    formSelectedVariant = '';
     document.getElementById('formModel').value = '';
     document.getElementById('formModelInput').value = '';
     document.getElementById('formModelInput').placeholder = 'Выберите модель';
@@ -4865,24 +4860,8 @@ function confirmFormModel() {
         tg.showAlert('Выберите модель');
         return;
     }
-    
-    // Проверяем, есть ли варианты для этой модели
-    const cat = document.getElementById('category').value;
-    const brandsSource = (cat === 'parts') ? 'car' : cat;
-    const brandData = BRANDS_DATA[brandsSource]?.[formSelectedBrand];
-    
-    // Если это иерархическая структура (объект) - показываем варианты
-    if (brandData && !Array.isArray(brandData)) {
-        closeFormModelModal();
-        openFormVariantModal();
-        return;
-    }
-    
-    // Если старая структура (массив) - просто закрываем модал
     document.getElementById('formModel').value = formSelectedModel;
     document.getElementById('formModelInput').value = formSelectedModel;
-    formSelectedVariant = ''; // Очищаем вариант
-    
     closeFormModelModal();
 }
 
@@ -4890,72 +4869,6 @@ function closeFormModelModal() {
     document.getElementById('formModelModal').classList.remove('show');
 }
 
-// ═══ МОДАЛ ВЫБОРА ВАРИАНТА/КОМПЛЕКТАЦИИ ═══
-
-function openFormVariantModal() {
-    const cat = document.getElementById('category').value;
-    const brandsSource = (cat === 'parts') ? 'car' : cat;
-    const brandData = BRANDS_DATA[brandsSource]?.[formSelectedBrand];
-    
-    if (!brandData || Array.isArray(brandData)) {
-        // Нет вариантов или старая структура
-        return;
-    }
-    
-    const variants = brandData[formSelectedModel] || [];
-    
-    if (variants.length === 0) {
-        tg.showAlert('Для выбранной модели нет вариантов');
-        return;
-    }
-    
-    const grid = document.getElementById('formVariantGrid');
-    
-    // Добавляем опцию "Все {модель}"
-    const allOption = `Все ${formSelectedModel}`;
-    const optionsHTML = [
-        `<div class="form-brand-option ${formSelectedVariant === allOption ? 'selected' : ''}" onclick="selectFormVariant('${allOption.replace(/'/g, "\\'")}')" style="font-weight: 600; background: #f0f0f0;">${allOption}</div>`,
-        ...variants.map(variant => 
-            `<div class="form-brand-option ${formSelectedVariant === variant ? 'selected' : ''}" onclick="selectFormVariant('${variant.replace(/'/g, "\\'")}')">${variant}</div>`
-        )
-    ].join('');
-    
-    grid.innerHTML = optionsHTML;
-    
-    document.getElementById('formVariantModal').classList.add('show');
-}
-
-function selectFormVariant(variant) {
-    formSelectedVariant = variant;
-    
-    document.querySelectorAll('#formVariantGrid .form-brand-option').forEach(el => {
-        el.classList.toggle('selected', el.textContent === variant);
-    });
-}
-
-function confirmFormVariant() {
-    if (!formSelectedVariant) {
-        tg.showAlert('Выберите вариант');
-        return;
-    }
-    
-    // Формируем полное название: "Модель Вариант" или просто "Модель" если выбрано "Все"
-    const allOption = `Все ${formSelectedModel}`;
-    let fullModel = formSelectedModel;
-    
-    if (formSelectedVariant !== allOption) {
-        fullModel = `${formSelectedModel} ${formSelectedVariant}`;
-    }
-    
-    document.getElementById('formModel').value = fullModel;
-    document.getElementById('formModelInput').value = fullModel;
-    
-    closeFormVariantModal();
-}
-
-function closeFormVariantModal() {
-    document.getElementById('formVariantModal').classList.remove('show');
-}
 
 document.getElementById('searchInput').addEventListener('input', function(e) {
     filters.search = e.target.value.toLowerCase();
