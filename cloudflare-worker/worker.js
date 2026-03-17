@@ -42,6 +42,7 @@ export default {
 async function verifyTelegramInitData(initData, botToken) {
     if (!initData) return { userId: null, reason: 'no initData' };
     if (!botToken) return { userId: null, reason: 'no botToken' };
+    botToken = botToken.trim();
 
     const params = new URLSearchParams(initData);
     const hash = params.get('hash');
