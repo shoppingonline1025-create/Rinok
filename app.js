@@ -299,21 +299,30 @@ function initFirebase() {
 // Авторизация в Firebase через Cloudflare Worker + Telegram initData
 async function signInToFirebase() {
     const initData = tg.initData;
+    console.log('[AUTH] initData present:', !!initData);
     if (!initData) {
-        // Тестовый режим (десктоп/разработка) — Firebase Auth пропускаем
+        console.warn('[AUTH] нет initData — пропускаем авторизацию');
         return;
     }
     try {
+        console.log('[AUTH] запрос к Worker...');
         const resp = await fetch(WORKER_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ initData })
         });
-        if (!resp.ok) throw new Error(`Worker HTTP ${resp.status}`);
-        const { token } = await resp.json();
+        console.log('[AUTH] Worker ответил:', resp.status);
+        if (!resp.ok) {
+            const body = await resp.text();
+            throw new Error(`Worker HTTP ${resp.status}: ${body}`);
+        }
+        const { token, error } = await resp.json();
+        if (error) throw new Error(`Worker error: ${error}`);
+        console.log('[AUTH] токен получен, входим в Firebase...');
         await firebase.auth().signInWithCustomToken(token);
+        console.log('[AUTH] ✅ Firebase uid:', firebase.auth().currentUser?.uid);
     } catch(e) {
-        console.warn('Firebase signIn failed:', e.message);
+        console.error('[AUTH] ❌ ошибка:', e.message);
     }
 }
 
