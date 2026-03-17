@@ -43,6 +43,26 @@ const BANNED_WORDS = [
     'оружие продам','пистолет продам','автомат продам','наркот','героин','кокаин','амфетамин',
 ];
 
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+const esc = escapeHtml;
+
+function validatePhone(value) {
+    if (!value) return 'Укажите номер телефона — покупатели смогут написать вам в Telegram';
+    if (!/^[+\d\s\-()]+$/.test(value)) return 'Номер телефона содержит недопустимые символы';
+    const digits = value.replace(/\D/g, '');
+    if (digits.length < 7) return 'Номер телефона слишком короткий (минимум 7 цифр)';
+    if (digits.length > 15) return 'Номер телефона слишком длинный (максимум 15 цифр)';
+    return null;
+}
+
 function containsBannedWords(text) {
     if (!text) return null;
     const lower = text.toLowerCase().replace(/ё/g, 'е');
@@ -245,6 +265,9 @@ function enrichCarsWithSellerInfo(carsArr) {
 // ║  FIREBASE SDK — WebSocket реальное время ║
 // ╚══════════════════════════════════════════╝
 
+// URL Cloudflare Worker — замените после деплоя (см. cloudflare-worker/wrangler.toml)
+const WORKER_URL = 'https://automarket-auth.avtomarketmd.workers.dev';
+
 const FIREBASE_CONFIG = {
     apiKey: "AIzaSyAa6huTUbUQrcyUF6t770imckBGcRAelqA",
     authDomain: "auto-market26.firebaseapp.com",
@@ -269,6 +292,27 @@ function initFirebase() {
     } catch(e) {
         console.error('Firebase init error:', e);
         return false;
+    }
+}
+
+// Авторизация в Firebase через Cloudflare Worker + Telegram initData
+async function signInToFirebase() {
+    const initData = tg.initData;
+    if (!initData) {
+        // Тестовый режим (десктоп/разработка) — Firebase Auth пропускаем
+        return;
+    }
+    try {
+        const resp = await fetch(WORKER_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ initData })
+        });
+        if (!resp.ok) throw new Error(`Worker HTTP ${resp.status}`);
+        const { token } = await resp.json();
+        await firebase.auth().signInWithCustomToken(token);
+    } catch(e) {
+        console.warn('Firebase signIn failed:', e.message);
     }
 }
 
@@ -1343,23 +1387,23 @@ function makeCard(c) {
         ${imageHtml}
         <div class="car-info">
             ${c.category === 'parts' ? `
-                <div class="car-title">${c.partTitle || ((c.partType || '') + (c.brand ? ' • ' + c.brand : ''))}</div>
-                <div class="car-price">${fmt(c.price)} ${c.currency}</div>
+                <div class="car-title">${esc(c.partTitle) || (esc(c.partType || '') + (c.brand ? ' • ' + esc(c.brand) : ''))}</div>
+                <div class="car-price">${fmt(c.price)} ${esc(c.currency)}</div>
                 <div class="car-details">
-                    <div><span class="detail-icon">🔧</span> ${c.partType}</div>
-                    <div><span class="detail-icon">✅</span> Состояние: <strong>${c.condition}</strong></div>
-                    <div><span class="detail-icon">📍</span> Город: <strong>${c.city}</strong></div>
+                    <div><span class="detail-icon">🔧</span> ${esc(c.partType)}</div>
+                    <div><span class="detail-icon">✅</span> Состояние: <strong>${esc(c.condition)}</strong></div>
+                    <div><span class="detail-icon">📍</span> Город: <strong>${esc(c.city)}</strong></div>
                 </div>
             ` : `
-                <div class="car-title">${c.brand || ''} ${c.model || ''} ${c.year || ''}</div>
-                <div class="car-price">${fmt(c.price)} ${c.currency}</div>
+                <div class="car-title">${esc(c.brand)} ${esc(c.model)} ${esc(c.year)}</div>
+                <div class="car-price">${fmt(c.price)} ${esc(c.currency)}</div>
                 <div class="car-details">
                     <div><span class="detail-icon">📏</span> Пробег: <strong>${fmt(c.mileage)} км</strong></div>
-                    <div><span class="detail-icon">🔧</span> Объем: <strong>${c.engine}</strong></div>
-                    <div><span class="detail-icon">⛽</span> Топливо: <strong>${c.fuel}</strong></div>
-                    ${c.drive ? `<div><span class="detail-icon">🚙</span> Привод: <strong>${c.drive}</strong></div>` : ''}
-                    <div><span class="detail-icon">📍</span> Город: <strong>${c.city}</strong></div>
-                    <div><span class="detail-icon">🚘</span> Регистрация: <strong>${c.registration}</strong></div>
+                    <div><span class="detail-icon">🔧</span> Объем: <strong>${esc(c.engine)}</strong></div>
+                    <div><span class="detail-icon">⛽</span> Топливо: <strong>${esc(c.fuel)}</strong></div>
+                    ${c.drive ? `<div><span class="detail-icon">🚙</span> Привод: <strong>${esc(c.drive)}</strong></div>` : ''}
+                    <div><span class="detail-icon">📍</span> Город: <strong>${esc(c.city)}</strong></div>
+                    <div><span class="detail-icon">🚘</span> Регистрация: <strong>${esc(c.registration)}</strong></div>
                 </div>
             `}
         </div>
@@ -1478,34 +1522,34 @@ function showDetail(id) {
     document.getElementById('detailContent').innerHTML = `
         ${galleryHtml}
         <div class="detail-info">
-            <div class="detail-title">${c.category === 'parts' ? (c.partTitle || c.partType + ' • ' + c.brand) : c.brand + ' ' + c.model}</div>
-            <div class="detail-price">${fmt(c.price)} ${c.currency}</div>
+            <div class="detail-title">${c.category === 'parts' ? (esc(c.partTitle) || esc(c.partType) + ' • ' + esc(c.brand)) : esc(c.brand) + ' ' + esc(c.model)}</div>
+            <div class="detail-price">${fmt(c.price)} ${esc(c.currency)}</div>
             <div class="contact-section">${contactButtons}</div>
             <div class="detail-section">
                 <div class="detail-section-title">Характеристики</div>
                 <div class="detail-specs">
-                    <div class="detail-spec-item"><div class="detail-spec-label">Категория</div><div class="detail-spec-value">${categoryNames[c.category]}</div></div>
+                    <div class="detail-spec-item"><div class="detail-spec-label">Категория</div><div class="detail-spec-value">${esc(categoryNames[c.category])}</div></div>
                     ${c.category === 'parts' ? `
-                        ${c.partTitle ? `<div class="detail-spec-item"><div class="detail-spec-label">Заголовок</div><div class="detail-spec-value">${c.partTitle}</div></div>` : ''}
-                        <div class="detail-spec-item"><div class="detail-spec-label">Тип детали</div><div class="detail-spec-value">${c.partType}</div></div>
-                        <div class="detail-spec-item"><div class="detail-spec-label">Для марки</div><div class="detail-spec-value">${c.brand}</div></div>
-                        ${c.model ? `<div class="detail-spec-item"><div class="detail-spec-label">Модель</div><div class="detail-spec-value">${c.model}</div></div>` : ''}
-                        <div class="detail-spec-item"><div class="detail-spec-label">Состояние</div><div class="detail-spec-value">${c.condition}</div></div>
+                        ${c.partTitle ? `<div class="detail-spec-item"><div class="detail-spec-label">Заголовок</div><div class="detail-spec-value">${esc(c.partTitle)}</div></div>` : ''}
+                        <div class="detail-spec-item"><div class="detail-spec-label">Тип детали</div><div class="detail-spec-value">${esc(c.partType)}</div></div>
+                        <div class="detail-spec-item"><div class="detail-spec-label">Для марки</div><div class="detail-spec-value">${esc(c.brand)}</div></div>
+                        ${c.model ? `<div class="detail-spec-item"><div class="detail-spec-label">Модель</div><div class="detail-spec-value">${esc(c.model)}</div></div>` : ''}
+                        <div class="detail-spec-item"><div class="detail-spec-label">Состояние</div><div class="detail-spec-value">${esc(c.condition)}</div></div>
                     ` : `
-                        <div class="detail-spec-item"><div class="detail-spec-label">Год</div><div class="detail-spec-value">${c.year}</div></div>
+                        <div class="detail-spec-item"><div class="detail-spec-label">Год</div><div class="detail-spec-value">${esc(c.year)}</div></div>
                         <div class="detail-spec-item"><div class="detail-spec-label">Пробег</div><div class="detail-spec-value">${fmt(c.mileage)} км</div></div>
-                        <div class="detail-spec-item"><div class="detail-spec-label">Двигатель</div><div class="detail-spec-value">${c.engine}</div></div>
-                        <div class="detail-spec-item"><div class="detail-spec-label">Коробка</div><div class="detail-spec-value">${c.transmission}</div></div>
-                        <div class="detail-spec-item"><div class="detail-spec-label">Топливо</div><div class="detail-spec-value">${c.fuel}</div></div>
-                        ${c.drive ? `<div class="detail-spec-item"><div class="detail-spec-label">Привод</div><div class="detail-spec-value">${c.drive}</div></div>` : ''}
+                        <div class="detail-spec-item"><div class="detail-spec-label">Двигатель</div><div class="detail-spec-value">${esc(c.engine)}</div></div>
+                        <div class="detail-spec-item"><div class="detail-spec-label">Коробка</div><div class="detail-spec-value">${esc(c.transmission)}</div></div>
+                        <div class="detail-spec-item"><div class="detail-spec-label">Топливо</div><div class="detail-spec-value">${esc(c.fuel)}</div></div>
+                        ${c.drive ? `<div class="detail-spec-item"><div class="detail-spec-label">Привод</div><div class="detail-spec-value">${esc(c.drive)}</div></div>` : ''}
                     `}
-                    <div class="detail-spec-item"><div class="detail-spec-label">Город</div><div class="detail-spec-value">${c.city}</div></div>
-                    ${c.category !== 'parts' ? `<div class="detail-spec-item"><div class="detail-spec-label">Регистрация</div><div class="detail-spec-value">${c.registration || '—'}</div></div>` : ''}
+                    <div class="detail-spec-item"><div class="detail-spec-label">Город</div><div class="detail-spec-value">${esc(c.city)}</div></div>
+                    ${c.category !== 'parts' ? `<div class="detail-spec-item"><div class="detail-spec-label">Регистрация</div><div class="detail-spec-value">${esc(c.registration) || '—'}</div></div>` : ''}
                 </div>
             </div>
             <div class="detail-section">
                 <div class="detail-section-title">Описание</div>
-                <div>${c.description}</div>
+                <div>${esc(c.description)}</div>
             </div>
             ${c.video ? `
             <div class="detail-section">
@@ -1516,9 +1560,9 @@ function showDetail(id) {
             <div class="detail-section">
                 <div class="detail-section-title">Продавец</div>
                 <div class="seller-info">
-                    <div class="seller-name">${sellerName}</div>
-                    ${sellerUsername ? `<div class="seller-location">@${sellerUsername}</div>` : ''}
-                    ${sellerCity ? `<div class="seller-location">📍 ${sellerCity}</div>` : ''}
+                    <div class="seller-name">${esc(sellerName)}</div>
+                    ${sellerUsername ? `<div class="seller-location">@${esc(sellerUsername)}</div>` : ''}
+                    ${sellerCity ? `<div class="seller-location">📍 ${esc(sellerCity)}</div>` : ''}
                     ${sellerRating ? `<div class="seller-rating">⭐ ${Number(sellerRating).toFixed(1)}</div>` : ''}
                 </div>
             </div>
@@ -1547,9 +1591,9 @@ function showDetail(id) {
                             <div class="seller-car-card" onclick="event.stopPropagation(); showDetail(${car.id})">
                                 ${carImage}
                                 <div class="seller-car-info">
-                                    <div class="seller-car-title">${car.brand} ${car.model}</div>
-                                    <div class="seller-car-price">${fmt(car.price)} ${car.currency}</div>
-                                    <div class="seller-car-year">${car.year} г.</div>
+                                    <div class="seller-car-title">${esc(car.brand)} ${esc(car.model)}</div>
+                                    <div class="seller-car-price">${fmt(car.price)} ${esc(car.currency)}</div>
+                                    <div class="seller-car-year">${esc(car.year)} г.</div>
                                 </div>
                             </div>
                         `;
@@ -1757,26 +1801,26 @@ function renderFavorites() {
                 ${thumbHtml}
                 <div class="fav-card-body">
                     <div class="fav-card-header">
-                        <div class="fav-card-title">${c.category === 'parts' ? (c.partTitle || c.partType || c.brand) : `${c.brand} ${c.model} <span class="fav-card-year">${c.year}</span>`}</div>
+                        <div class="fav-card-title">${c.category === 'parts' ? (esc(c.partTitle) || esc(c.partType) || esc(c.brand)) : `${esc(c.brand)} ${esc(c.model)} <span class="fav-card-year">${esc(c.year)}</span>`}</div>
                         ${isTop}
                     </div>
-                    <div class="fav-card-price">${fmt(c.price)} ${c.currency}</div>
+                    <div class="fav-card-price">${fmt(c.price)} ${esc(c.currency)}</div>
                     <div class="fav-card-meta">
                         ${c.category === 'parts' ? `
-                            <span>🔧 ${c.partType || '—'}</span>
-                            <span>✅ ${c.condition || '—'}</span>
+                            <span>🔧 ${esc(c.partType) || '—'}</span>
+                            <span>✅ ${esc(c.condition) || '—'}</span>
                         ` : `
                             <span>📏 ${fmt(c.mileage)} км</span>
-                            <span>📍 ${c.city}</span>
+                            <span>📍 ${esc(c.city)}</span>
                         `}
                     </div>
                     ${c.category !== 'parts' ? `
                     <div class="fav-card-meta">
-                        <span>⛽ ${c.fuel}</span>
-                        <span>⚙️ ${c.transmission}</span>
+                        <span>⛽ ${esc(c.fuel)}</span>
+                        <span>⚙️ ${esc(c.transmission)}</span>
                     </div>` : `
                     <div class="fav-card-meta">
-                        <span>📍 ${c.city}</span>
+                        <span>📍 ${esc(c.city)}</span>
                     </div>`}
                 </div>
                 <button class="fav-remove-btn" onclick="event.stopPropagation(); removeFromFav(${c.id})" title="Удалить из избранного">❤️</button>
@@ -2107,8 +2151,9 @@ async function handleSubmit(e) {
     // Валидация телефона
     const phoneInput = document.getElementById('listingPhone');
     const phoneValue = phoneInput ? phoneInput.value.trim() : '';
-    if (!phoneValue) {
-        tg.showAlert('Укажите номер телефона — покупатели смогут написать вам в Telegram');
+    const phoneError = validatePhone(phoneValue);
+    if (phoneError) {
+        tg.showAlert(phoneError);
         phoneInput && phoneInput.focus();
         unblockSubmit();
         return;
@@ -4353,7 +4398,7 @@ function renderMyListings() {
             ${thumbHtml}
             <div class="my-listing-row">
                 <div class="my-listing-info" onclick="showDetail(${car.id})">
-                    <div class="my-listing-title">${car.category === 'parts' ? (car.partTitle || car.partType || car.brand) : car.brand + ' ' + car.model + ' ' + (car.year || '')}</div>
+                    <div class="my-listing-title">${car.category === 'parts' ? (esc(car.partTitle) || esc(car.partType) || esc(car.brand)) : esc(car.brand) + ' ' + esc(car.model) + ' ' + esc(car.year || '')}</div>
                     <div class="my-listing-price">${fmt(car.price)} ${car.currency}</div>
                     <div class="my-listing-date">${formatDate(car.createdAt)}</div>
                     <div class="my-listing-views">
@@ -4388,12 +4433,20 @@ function editField(field) {
 
 function saveField() {
     const value = document.getElementById('editFieldInput').value.trim();
-    
+
     if (!value) {
         tg.showAlert('Введите значение');
         return;
     }
-    
+
+    if (currentEditField === 'phone') {
+        const phoneError = validatePhone(value);
+        if (phoneError) {
+            tg.showAlert(phoneError);
+            return;
+        }
+    }
+
     currentUser[currentEditField] = value;
     saveUser();
     
@@ -4877,6 +4930,13 @@ document.getElementById('searchInput').addEventListener('input', function(e) {
 
 // Инициализация приложения — ждём загрузку пользователя перед рендером
 (async () => {
+    // Динамически устанавливаем максимальный год (текущий год)
+    const currentYear = new Date().getFullYear();
+    ['year', 'yearFrom', 'yearTo'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.max = currentYear;
+    });
+
     // Показываем экран загрузки пока грузим данные из Firebase
     const loadingEl = document.createElement('div');
     loadingEl.id = 'appLoader';
@@ -4888,6 +4948,10 @@ document.getElementById('searchInput').addEventListener('input', function(e) {
 
     // Инициализируем Firebase SDK
     initFirebase();
+
+    // Авторизуемся через Telegram initData → Cloudflare Worker → Firebase Custom Token
+    // Должно быть ДО initUser, который пишет в /users
+    await signInToFirebase();
 
     await initUser();
 

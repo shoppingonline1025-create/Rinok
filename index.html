@@ -1,17 +1,18 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<!-- AutoMarket v7.4 - Extended Models & Fuel Types -->
+<!-- AutoMarket v7.6 - Hierarchical Model Selection -->
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>АвтоМаркет v7.4</title>
+<title>АвтоМаркет v7.6</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="format-detection" content="telephone=no">
-<link rel="stylesheet" href="styles.css?v=7.5">
+<link rel="stylesheet" href="styles.css?v=7.6">
 <!-- Firebase SDK (compat версия — работает без npm/bundler) -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 </head>
 <body>
 <header class="header">
@@ -112,9 +113,9 @@
 <div class="modal-content">
 <h3>Год выпуска</h3>
 <div class="range-inputs">
-<input type="number" id="yearFrom" placeholder="От" min="1990" max="2025">
+<input type="number" id="yearFrom" placeholder="От" min="1990">
 <span>—</span>
-<input type="number" id="yearTo" placeholder="До" min="1990" max="2025">
+<input type="number" id="yearTo" placeholder="До" min="1990">
 </div>
 <div class="modal-buttons">
 <button class="btn-secondary" onclick="closeModal('yearModal')">Отмена</button>
@@ -288,7 +289,7 @@
 </div>
 <div class="form-group">
 <label>Год</label>
-<input type="number" id="year" placeholder="2020" min="1990" max="2025" required>
+<input type="number" id="year" placeholder="2020" min="1990" required>
 </div>
 <div class="form-group">
 <label>Валюта</label>
@@ -701,8 +702,8 @@
 </nav>
 
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<script src="data.js?v=7.5"></script>
-<script src="app.js?v=7.5"></script>
+<script src="data.js?v=7.6"></script>
+<script src="app.js?v=7.6"></script>
 
 <!-- Страница "Мои фильтры" -->
 <div id="filtersPage" class="profile-page">
