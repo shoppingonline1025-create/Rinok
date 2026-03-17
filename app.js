@@ -2519,10 +2519,10 @@ const RATING_POINTS = {
     BOOST_FREE:          5,  // бесплатное поднятие
     BOOST_PAID:         15,  // платное поднятие
     PROFILE_COMPLETE:   30,  // заполнил имя+телефон+город+фото
-    ALL_PHOTOS:         10,  // добавил 6 фото при публикации
-    VIDEO_ADDED:        10,  // добавил видео при публикации
+    ALL_PHOTOS:         40,  // добавил 6 фото при публикации
+    VIDEO_ADDED:        40,  // добавил видео при публикации
     STREAK_7_DAYS:      25,  // открыл приложение 7 дней подряд
-    BALANCE_TOPUP:      10,  // пополнил баланс
+    BALANCE_TOPUP:      50,  // пополнил баланс
 };
 
 // Начислить очки рейтинга
@@ -3266,7 +3266,7 @@ function performBoost(car) {
 // Проверить, доступен ли временный Топ пользователю
 function canUseTempTop() {
     const pts = currentUser.ratingPoints || 0;
-    return pts >= 200; // достаточно очков для покупки
+    return pts >= 300; // достаточно очков для покупки
 }
 
 // Активировать временный Топ для объявления (24ч)
@@ -3276,7 +3276,7 @@ function activateTempTop(carId, skipConfirm = false) {
     // Проверка уровня — защита от прямого вызова в обход canUseTempTop()
     // skipConfirm=true означает вызов из buyTempTop (очки уже проверены и списаны)
     if (!skipConfirm && !canUseTempTop()) {
-        tg.showAlert('Функция «Поставить в Топ» доступна с уровня 2 (500 очков)');
+        tg.showAlert('Недостаточно очков.\nНужно: 300 · У вас: ' + (currentUser.ratingPoints || 0));
         return;
     }
     
@@ -3913,7 +3913,7 @@ function renderAchievements() {
             icon: '🔥',
             title: 'Объявление в Топ на 24 часа',
             desc: 'Одно объявление дублируется в раздел «Топ» на 24 часа. После — остаётся в общих.',
-            cost: 200,
+            cost: 300,
             active: tempTopActive,
             activeLabel: tempTopLeft ? `Активно · осталось ${tempTopLeft}` : 'Активно',
             action: "buyTempTop()"
@@ -3923,7 +3923,7 @@ function renderAchievements() {
             icon: '🏷️',
             title: 'Выделение объявления на 24 часа',
             desc: 'Цветная рамка и подсветка карточки в ленте. Выделяется среди обычных объявлений.',
-            cost: 200,
+            cost: 250,
             active: highlightActive,
             activeLabel: highlightLeft ? `Активно · осталось ${highlightLeft}` : 'Активно',
             action: "buyHighlight()"
@@ -4046,7 +4046,7 @@ function boost12hActive_() {
 
 function buyTempTop() {
     const pts = currentUser.ratingPoints || 0;
-    const COST = 200;
+    const COST = 300;
     const tt = currentUser.tempTop;
     const alreadyActive = tt?.carId && new Date(tt?.expiresAt) > new Date();
 
@@ -4145,7 +4145,7 @@ function chooseTempTopListing() {
 
 // ─── ВЫДЕЛЕНИЕ ОБЪЯВЛЕНИЯ ─────────────────────────────────────────────────────
 function activateHighlight(carId, skipConfirm = false) {
-    const COST = 200;
+    const COST = 250;
     if (!skipConfirm && (currentUser.ratingPoints || 0) < COST) {
         tg.showAlert(`Недостаточно очков.\nНужно: ${COST} · У вас: ${currentUser.ratingPoints || 0}`);
         return;
@@ -4165,7 +4165,7 @@ function activateHighlight(carId, skipConfirm = false) {
 
 function buyHighlight() {
     const pts = currentUser.ratingPoints || 0;
-    const COST = 200;
+    const COST = 250;
     const myListings = cars.filter(c => String(c.userId) === String(currentUser.id));
 
     if (!myListings.length) {
