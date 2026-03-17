@@ -313,8 +313,8 @@ async function signInToFirebase() {
         });
         console.log('[AUTH] Worker ответил:', resp.status);
         if (!resp.ok) {
-            const body = await resp.text();
-            throw new Error(`Worker HTTP ${resp.status}: ${body}`);
+            const body = await resp.json().catch(() => ({}));
+            throw new Error(`Worker HTTP ${resp.status}: ${body.reason || body.error || ''}`);
         }
         const { token, error } = await resp.json();
         if (error) throw new Error(`Worker error: ${error}`);
