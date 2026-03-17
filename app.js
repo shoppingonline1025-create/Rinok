@@ -1353,13 +1353,14 @@ function render() {
 }
 
 function makeCard(c) {
-    currentGalleryIndex[c.id] = 0;
+    if (currentGalleryIndex[c.id] === undefined) currentGalleryIndex[c.id] = 0;
+    const idx = currentGalleryIndex[c.id];
     let imageHtml = '';
-    
+
     if (c.photos && c.photos.length > 0) {
-        const dots = c.photos.map((p, i) => `<span class="gallery-dot ${i === 0 ? 'active' : ''}"></span>`).join('');
+        const dots = c.photos.map((p, i) => `<span class="gallery-dot ${i === idx ? 'active' : ''}"></span>`).join('');
         imageHtml = `<div class="car-gallery" data-car-id="${c.id}">
-            <img src="${c.photos[0]}">
+            <img src="${c.photos[idx]}">
             <div class="category-badge">${categoryNames[c.category]}</div>
             <div class="date-badge">${formatDateShort(c.createdAt)}</div>
             ${c.photos.length > 1 ? `
