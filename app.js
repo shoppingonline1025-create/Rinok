@@ -413,11 +413,12 @@ function syncFromFirebase() {
 
 // --- Сохранить одну машину ---
 function pushCarToFirebase(car) {
-    if (!_fbDb) return;
-    firebase.database().ref(`cars/${car.id}`).set(car)
+    if (!_fbDb) return Promise.resolve();
+    return firebase.database().ref(`cars/${car.id}`).set(car)
         .catch(e => {
             console.error('pushCar error:', e);
             setSyncStatus('error', `Ошибка записи: ${e.message}`);
+            throw e;
         });
 }
 
@@ -432,9 +433,13 @@ function pushAllCarsToFirebase(carsArr) {
 
 // --- Удалить машину ---
 function deleteCarFromFirebase(carId) {
-    if (!_fbDb) return;
-    firebase.database().ref(`cars/${carId}`).remove()
-        .catch(e => console.error('deleteCarFromFirebase error:', e));
+    if (!_fbDb) return Promise.resolve();
+    return firebase.database().ref(`cars/${carId}`).remove()
+        .catch(e => {
+            console.error('deleteCarFromFirebase error:', e);
+            setSyncStatus('error', `Ошибка удаления: ${e.message}`);
+            throw e;
+        });
 }
 
 // --- Пользователи ---
@@ -444,7 +449,11 @@ async function pushUserToFirebase(user) {
     delete userToSave.photo;
     try {
         await firebase.database().ref(`users/${user.id}`).set(userToSave);
-    } catch(e) { console.warn('pushUser error:', e.message); }
+    } catch(e) {
+        console.warn('pushUser error:', e.message);
+        setSyncStatus('error', `Данные не сохранены: ${e.message}`);
+        throw e;
+    }
 }
 
 async function loadUserFromFirebase(userId) {
@@ -1838,21 +1847,26 @@ function deleteListing(carId) {
             {id: 'cancel', type: 'cancel', text: 'Отмена'},
             {id: 'delete', type: 'destructive', text: 'Удалить'}
         ]
-    }, function(buttonId) {
+    }, async function(buttonId) {
         if (buttonId === 'delete') {
+            try {
+                await deleteCarFromFirebase(carId);
+            } catch(e) {
+                tg.showAlert('Ошибка удаления. Проверьте соединение и попробуйте снова.');
+                return;
+            }
+
             // Удаляем из памяти (сохраняем все чужие объявления)
             cars = cars.filter(c => c.id !== carId);
             // Удаляем из localStorage (только метаданные)
             DB.saveCars(cars);
-            // Удаляем из Firebase
-            deleteCarFromFirebase(carId);
-            
+
             // Удаляем из списка пользователя (id может быть числом или строкой)
             if (currentUser.listings) {
                 currentUser.listings = currentUser.listings.filter(id => String(id) !== String(carId));
                 saveUser();
             }
-            
+
             tg.showAlert('Объявление удалено', () => {});
             renderMyListings();
             render();
@@ -2292,7 +2306,16 @@ async function handleSubmit(e) {
 
             cars.push(carData);
             DB.saveCars(cars);
-            pushCarToFirebase(carData);
+
+            try {
+                await pushCarToFirebase(carData);
+            } catch(e) {
+                cars = cars.filter(c => c.id !== carData.id);
+                DB.saveCars(cars);
+                unblockSubmit();
+                tg.showAlert('Ошибка сохранения объявления. Проверьте соединение и попробуйте снова.');
+                return;
+            }
 
             if (!currentUser.listings) currentUser.listings = [];
             currentUser.listings.push(carData.id);
