@@ -1371,7 +1371,7 @@ function makeCard(c) {
     if (c.photos && c.photos.length > 0) {
         const dots = c.photos.map((p, i) => `<span class="gallery-dot ${i === idx ? 'active' : ''}"></span>`).join('');
         imageHtml = `<div class="car-gallery" data-car-id="${c.id}">
-            <img src="${c.photos[idx]}">
+            <img src="${getThumbUrl(c.photos[idx])}">
             <div class="category-badge">${categoryNames[c.category]}</div>
             <div class="date-badge">${formatDateShort(c.createdAt)}</div>
             ${isVip      ? `<div class="top-badge top-badge--vip">🔥 VIP</div>` : ''}
@@ -1438,7 +1438,7 @@ function switchPhoto(carId, dir) {
     if (cardElement) {
         const img = cardElement.querySelector('.car-gallery img');
         const dots = cardElement.querySelectorAll('.gallery-dot');
-        if (img) img.src = car.photos[currentGalleryIndex[carId]];
+        if (img) img.src = getThumbUrl(car.photos[currentGalleryIndex[carId]]);
         dots.forEach((dot, i) => dot.classList.toggle('active', i === currentGalleryIndex[carId]));
     }
 }
@@ -1477,8 +1477,8 @@ function showDetail(id) {
     
     let galleryHtml = '';
     if (c.photos && c.photos.length > 0) {
-        const images = c.photos.map((p, i) => 
-            `<img src="${p}" onclick="openPhotoModal(${i})" style="display: ${i === 0 ? 'block' : 'none'}; width: 100%; object-fit: cover; cursor: pointer;">`
+        const images = c.photos.map((p, i) =>
+            `<img src="${getFullUrl(p)}" onclick="openPhotoModal(${i})" style="display: ${i === 0 ? 'block' : 'none'}; width: 100%; object-fit: cover; cursor: pointer;">`
         ).join('');
         
         galleryHtml = `<div class="detail-gallery">
@@ -1646,7 +1646,7 @@ function openPhotoModal(index) {
     const img = document.getElementById('photoModalImg');
     const counter = document.getElementById('photoModalCounter');
     
-    img.src = currentDetailPhotos[photoModalIndex];
+    img.src = getFullUrl(currentDetailPhotos[photoModalIndex]);
     
     if (currentDetailPhotos.length > 1) {
         counter.textContent = `${photoModalIndex + 1} / ${currentDetailPhotos.length}`;
@@ -1681,7 +1681,7 @@ function switchPhotoModal(direction) {
     const img = document.getElementById('photoModalImg');
     const counter = document.getElementById('photoModalCounter');
     
-    img.src = currentDetailPhotos[photoModalIndex];
+    img.src = getFullUrl(currentDetailPhotos[photoModalIndex]);
     counter.textContent = `${photoModalIndex + 1} / ${currentDetailPhotos.length}`;
 }
 
