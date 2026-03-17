@@ -133,30 +133,30 @@ async function uploadToCloudinary(base64Data) {
  */
 async function uploadPhotosToCloudinary(base64Photos, onProgress) {
     const urls = [];
+    let failedCount = 0;
     const total = base64Photos.length;
-    
+
     for (let i = 0; i < base64Photos.length; i++) {
         const photo = base64Photos[i];
-        
+
         // Если это уже URL (не base64) — пропускаем загрузку
         if (photo.startsWith('http://') || photo.startsWith('https://')) {
             urls.push(photo);
             if (onProgress) onProgress(i + 1, total);
             continue;
         }
-        
+
         try {
             if (onProgress) onProgress(i + 1, total);
             const cloudinaryUrl = await uploadToCloudinary(photo);
             urls.push(cloudinaryUrl);
         } catch (e) {
             console.error(`Failed to upload photo ${i + 1}:`, e);
-            // Не прерываем загрузку остальных фото
-            // Можно вернуть base64 как fallback, но лучше пропустить
+            failedCount++;
         }
     }
-    
-    return urls;
+
+    return { urls, failedCount };
 }
 
 /**
@@ -2228,15 +2228,20 @@ async function handleSubmit(e) {
     if (uploadedPhotos.length > 0) {
         try {
             submitBtn.textContent = '📤 Загрузка фото...';
-            
-            cloudinaryPhotos = await uploadPhotosToCloudinary(uploadedPhotos, (current, total) => {
+
+            const result = await uploadPhotosToCloudinary(uploadedPhotos, (current, total) => {
                 submitBtn.textContent = `📤 Фото ${current}/${total}...`;
             });
-            
-            if (cloudinaryPhotos.length === 0 && uploadedPhotos.length > 0) {
+            cloudinaryPhotos = result.urls;
+
+            if (cloudinaryPhotos.length === 0) {
                 throw new Error('Не удалось загрузить фото');
             }
-            
+
+            if (result.failedCount > 0) {
+                tg.showAlert(`⚠️ ${result.failedCount} из ${uploadedPhotos.length} фото не загрузились. Объявление будет опубликовано с ${cloudinaryPhotos.length} фото.`);
+            }
+
             submitBtn.textContent = '⏳ Сохранение...';
         } catch (e) {
             console.error('Cloudinary upload failed:', e);
