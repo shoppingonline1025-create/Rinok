@@ -418,7 +418,6 @@ function pushCarToFirebase(car) {
     return firebase.database().ref(`cars/${car.id}`).set(car)
         .catch(e => {
             console.error('pushCar error:', e);
-            setSyncStatus('error', `Ошибка записи: ${e.message}`);
             throw e;
         });
 }
@@ -438,7 +437,6 @@ function deleteCarFromFirebase(carId) {
     return firebase.database().ref(`cars/${carId}`).remove()
         .catch(e => {
             console.error('deleteCarFromFirebase error:', e);
-            setSyncStatus('error', `Ошибка удаления: ${e.message}`);
             throw e;
         });
 }
@@ -452,7 +450,6 @@ async function pushUserToFirebase(user) {
         await firebase.database().ref(`users/${user.id}`).set(userToSave);
     } catch(e) {
         console.warn('pushUser error:', e.message);
-        setSyncStatus('error', `Данные не сохранены: ${e.message}`);
         throw e;
     }
 }
