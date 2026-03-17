@@ -427,8 +427,24 @@
 <div id="detailPage" class="detail-page">
 <div class="detail-header">
 <button class="back-button" onclick="closePage('detailPage')">← Назад</button>
+<button class="share-button" onclick="shareListing(window._currentDetailId)">📤 Поделиться</button>
 </div>
 <div id="detailContent"></div>
+</div>
+
+<!-- Share bottom sheet -->
+<div id="shareSheetOverlay" class="share-overlay" onclick="closeShareSheet()"></div>
+<div id="shareSheet" class="share-sheet">
+  <div class="share-sheet-handle"></div>
+  <div class="share-sheet-title">Поделиться объявлением</div>
+  <button class="share-sheet-btn share-sheet-btn--telegram" onclick="shareToTelegram()">
+    <span class="share-sheet-btn-icon">✈️</span>
+    <span>Отправить в Telegram</span>
+  </button>
+  <button class="share-sheet-btn" id="copyLinkBtn" onclick="copyListingLink()">
+    <span class="share-sheet-btn-icon">🔗</span>
+    <span>Скопировать ссылку</span>
+  </button>
 </div>
 
 <div id="profilePage" class="profile-page">

@@ -22,6 +22,7 @@
 // ║  firebase.google.com → Realtime DB       ║
 // ╚══════════════════════════════════════════╝
 const FIREBASE_URL = 'https://auto-market26-default-rtdb.europe-west1.firebasedatabase.app';
+const BOT_USERNAME = 'Auto_Market_PMRbot'; // Telegram бот для deep links
 
 // ─── Администратор ────────────────────────────────────────────
 const ADMIN_TELEGRAM_ID  = 814278637;  // Telegram ID администратора (@LOVE_TIRAS)
@@ -1465,7 +1466,9 @@ function switchDetailPhoto(dir) {
 function showDetail(id) {
     let c = cars.find(x => x.id === id);
     if (!c) return;
-    
+
+    window._currentDetailId = id;
+
     // Увеличиваем счётчик просмотров
     incrementView(id);
     
@@ -1684,6 +1687,65 @@ function switchPhotoModal(direction) {
     img.src = getFullUrl(currentDetailPhotos[photoModalIndex]);
     counter.textContent = `${photoModalIndex + 1} / ${currentDetailPhotos.length}`;
 }
+
+// ─── ПОДЕЛИТЬСЯ ОБЪЯВЛЕНИЕМ ───────────────────────────────────────────────────
+
+function getListingDeepLink(carId) {
+    return `https://t.me/${BOT_USERNAME}?startapp=listing_${carId}`;
+}
+
+function getListingShareText(car) {
+    if (!car) return 'АвтоМаркет ПМР';
+    const title = car.category === 'parts'
+        ? (car.partTitle || car.partType || 'Запчасть')
+        : `${car.brand || ''} ${car.model || ''} ${car.year || ''}`.trim();
+    const price = car.price ? `${fmt(car.price)} ${car.currency || ''}`.trim() : '';
+    const city  = car.city ? `📍 ${car.city}` : '';
+    return [`🚗 ${title}`, price, city, 'АвтоМаркет ПМР'].filter(Boolean).join('\n');
+}
+
+function shareListing(carId) {
+    const sheet = document.getElementById('shareSheet');
+    sheet.dataset.carId = carId;
+    sheet.classList.add('show');
+    document.getElementById('shareSheetOverlay').classList.add('show');
+}
+
+function closeShareSheet() {
+    document.getElementById('shareSheet').classList.remove('show');
+    document.getElementById('shareSheetOverlay').classList.remove('show');
+}
+
+function shareToTelegram() {
+    const carId = document.getElementById('shareSheet').dataset.carId;
+    const car = cars.find(c => c.id === Number(carId));
+    const link = getListingDeepLink(carId);
+    const text = getListingShareText(car);
+    const url = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`;
+    tg.openTelegramLink(url);
+    closeShareSheet();
+}
+
+async function copyListingLink() {
+    const carId = document.getElementById('shareSheet').dataset.carId;
+    const link = getListingDeepLink(carId);
+    try {
+        await navigator.clipboard.writeText(link);
+    } catch {
+        // fallback для старых браузеров
+        const el = document.createElement('textarea');
+        el.value = link;
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand('copy');
+        document.body.removeChild(el);
+    }
+    const btn = document.getElementById('copyLinkBtn');
+    btn.textContent = '✓ Скопировано!';
+    setTimeout(() => { btn.textContent = '🔗 Скопировать ссылку'; closeShareSheet(); }, 1500);
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
 
 function openTelegramByPhone(phone) {
     if (!phone) { tg.showAlert('Телефон продавца не указан'); return; }
@@ -5013,6 +5075,15 @@ document.getElementById('searchInput').addEventListener('input', function(e) {
     updateFavBadge();
     checkDailyStreak();
     cleanExpiredTempTops();
+
+    // Если приложение открыто по deep link на конкретное объявление
+    const startParam = tg.initDataUnsafe?.start_param;
+    if (startParam && startParam.startsWith('listing_')) {
+        const targetId = Number(startParam.replace('listing_', ''));
+        if (targetId && cars.find(c => c.id === targetId)) {
+            showDetail(targetId);
+        }
+    }
     checkAndRunAutoBoosts();
     updatePremiumStatus();
     setTimeout(() => {
