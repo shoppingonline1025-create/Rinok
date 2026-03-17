@@ -272,6 +272,26 @@ body {
     font-size: 9px;
 }
 
+.top-badge {
+    position: absolute;
+    bottom: 8px;
+    left: 8px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+}
+.top-badge--vip {
+    background: linear-gradient(135deg, #f5a623, #e8850a);
+    color: #fff;
+}
+.top-badge--rotation {
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+    backdrop-filter: blur(4px);
+}
+
 .car-info {
     padding: 8px;
 }

@@ -1364,6 +1364,8 @@ function render() {
 function makeCard(c) {
     if (currentGalleryIndex[c.id] === undefined) currentGalleryIndex[c.id] = 0;
     const idx = currentGalleryIndex[c.id];
+    const isVip      = c.isTop;
+    const isRotation = !c.isTop && topRotationIds.includes(c.id);
     let imageHtml = '';
 
     if (c.photos && c.photos.length > 0) {
@@ -1372,6 +1374,8 @@ function makeCard(c) {
             <img src="${c.photos[idx]}">
             <div class="category-badge">${categoryNames[c.category]}</div>
             <div class="date-badge">${formatDateShort(c.createdAt)}</div>
+            ${isVip      ? `<div class="top-badge top-badge--vip">🔥 VIP</div>` : ''}
+            ${isRotation ? `<div class="top-badge top-badge--rotation">⭐ Топ</div>` : ''}
             ${c.photos.length > 1 ? `
                 <div class="gallery-arrows">
                     <button class="gallery-arrow" onclick="event.stopPropagation();switchPhoto(${c.id},-1)">‹</button>
@@ -3362,11 +3366,10 @@ function cleanExpiredTempTops() {
 const TOP_ROTATION_INTERVAL = 6 * 60 * 60 * 1000; // 6 часов в мс
 const TOP_ROTATION_COUNT    = 10;
 
-// Условия попадания в ротацию: 6 фото + видео + описание ≥ 50 символов + не платный закреп
+// Условия попадания в ротацию: 3+ фото + описание ≥ 30 символов + не платный ТОП
 function isEligibleForRotation(car) {
-    return Array.isArray(car.photos) && car.photos.length >= 6
-        && !!car.video
-        && typeof car.description === 'string' && car.description.length >= 50
+    return Array.isArray(car.photos) && car.photos.length >= 3
+        && typeof car.description === 'string' && car.description.length >= 30
         && !car.isTop;
 }
 
