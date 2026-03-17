@@ -6,10 +6,11 @@
 const FIREBASE_URL = 'https://auto-market26-default-rtdb.europe-west1.firebasedatabase.app';
 const FIREBASE_SECRET = process.env.FIREBASE_SECRET;
 const BOT_TOKEN = process.env.BOT_TOKEN;
+const BOT_USERNAME = 'Auto_Market_PMRbot';
 
 const CATEGORY_NAMES = {
     car: 'Легковые', truck: 'Грузовые', moto: 'Мото',
-    special: 'Спецтехника', parts: 'Запчасти', boat: 'Водный транспорт'
+    special: 'Спецтехника', parts: 'Запчасти', water: 'Водный транспорт'
 };
 
 // ─── Firebase REST API ────────────────────────────────────────────────────────
@@ -31,15 +32,16 @@ async function fbSet(path, value) {
 
 // ─── Telegram ─────────────────────────────────────────────────────────────────
 
-async function sendMessage(chatId, text) {
+async function sendMessage(chatId, text, replyMarkup = null) {
+    const body = { chat_id: chatId, text, parse_mode: 'HTML' };
+    if (replyMarkup) body.reply_markup = replyMarkup;
     const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' })
+        body: JSON.stringify(body)
     });
     const data = await res.json();
     if (!data.ok) {
-        // Если пользователь заблокировал бота — не крашим скрипт
         console.warn(`⚠️ Telegram [${chatId}]: ${data.description}`);
     }
     return data.ok;
@@ -49,15 +51,15 @@ async function sendMessage(chatId, text) {
 
 function matchesFilter(car, filter) {
     if (filter.category && car.category !== filter.category) return false;
-    if (filter.brand && car.brand && car.brand.toLowerCase() !== filter.brand.toLowerCase()) return false;
-    if (filter.model && car.model && !car.model.toLowerCase().includes(filter.model.toLowerCase())) return false;
-    if (filter.yearFrom && car.year && Number(car.year) < Number(filter.yearFrom)) return false;
-    if (filter.yearTo && car.year && Number(car.year) > Number(filter.yearTo)) return false;
+    if (filter.brand && car.brand?.toLowerCase() !== filter.brand.toLowerCase()) return false;
+    if (filter.model && !car.model?.toLowerCase().includes(filter.model.toLowerCase())) return false;
+    if (filter.yearFrom && Number(car.year) < Number(filter.yearFrom)) return false;
+    if (filter.yearTo && Number(car.year) > Number(filter.yearTo)) return false;
     // Цена проверяется только если валюта совпадает
     if ((filter.priceFrom || filter.priceTo) && filter.priceCurrency && car.currency !== filter.priceCurrency) return false;
-    if (filter.priceFrom && car.price && Number(car.price) < Number(filter.priceFrom)) return false;
-    if (filter.priceTo && car.price && Number(car.price) > Number(filter.priceTo)) return false;
-    if (filter.city && car.city && !car.city.toLowerCase().includes(filter.city.toLowerCase())) return false;
+    if (filter.priceFrom && Number(car.price) < Number(filter.priceFrom)) return false;
+    if (filter.priceTo && Number(car.price) > Number(filter.priceTo)) return false;
+    if (filter.city && !car.city?.toLowerCase().includes(filter.city.toLowerCase())) return false;
     return true;
 }
 
@@ -71,7 +73,7 @@ function buildFilterName(filter) {
 }
 
 function formatMessage(car, filterName) {
-    const emoji = { car: '🚗', truck: '🚚', moto: '🏍', special: '🚜', parts: '🔧', boat: '🚤' }[car.category] || '🚗';
+    const emoji = { car: '🚗', truck: '🚚', moto: '🏍', special: '🚜', parts: '🔧', water: '🚤' }[car.category] || '🚗';
     const title = car.category === 'parts'
         ? (car.partTitle || `${car.partType} • ${car.brand}`)
         : `${car.brand}${car.model ? ' ' + car.model : ''}${car.year ? ', ' + car.year + ' г.' : ''}`;
@@ -85,11 +87,21 @@ function formatMessage(car, filterName) {
     ];
     if (car.city) lines.push(`📍 ${car.city}`);
     if (car.mileage) lines.push(`🔢 ${Number(car.mileage).toLocaleString('ru')} км`);
+    if (car.engine) lines.push(`🔧 ${car.engine}`);
     if (car.description) {
         const desc = car.description.length > 120 ? car.description.slice(0, 120) + '…' : car.description;
         lines.push(`\n📝 ${desc}`);
     }
     return lines.join('\n');
+}
+
+function makeOpenButton(carId) {
+    return {
+        inline_keyboard: [[{
+            text: '👀 Открыть объявление',
+            url: `https://t.me/${BOT_USERNAME}?startapp=listing_${carId}`
+        }]]
+    };
 }
 
 // ─── Главная функция ──────────────────────────────────────────────────────────
@@ -138,7 +150,7 @@ async function main() {
 
             // Отправляем не более 3 сообщений за раз
             for (const car of matches.slice(0, 3)) {
-                await sendMessage(userId, formatMessage(car, filterName));
+                await sendMessage(userId, formatMessage(car, filterName), makeOpenButton(car.id));
                 sent++;
                 await new Promise(r => setTimeout(r, 300)); // пауза между сообщениями
             }

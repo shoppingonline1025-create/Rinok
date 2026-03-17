@@ -1696,12 +1696,21 @@ function getListingDeepLink(carId) {
 
 function getListingShareText(car) {
     if (!car) return 'АвтоМаркет ПМР';
+    const emoji = { car: '🚗', truck: '🚚', moto: '🏍', special: '🚜', parts: '🔧', water: '🚤' }[car.category] || '🚗';
     const title = car.category === 'parts'
         ? (car.partTitle || car.partType || 'Запчасть')
-        : `${car.brand || ''} ${car.model || ''} ${car.year || ''}`.trim();
-    const price = car.price ? `${fmt(car.price)} ${car.currency || ''}`.trim() : '';
-    const city  = car.city ? `📍 ${car.city}` : '';
-    return [`🚗 ${title}`, price, city, 'АвтоМаркет ПМР'].filter(Boolean).join('\n');
+        : `${car.brand || ''} ${car.model || ''} ${car.year ? ', ' + car.year + ' г.' : ''}`.trim();
+    const lines = [`${emoji} ${title}`];
+    if (car.price) lines.push(`💰 ${fmt(car.price)} ${car.currency || ''}`);
+    if (car.city)  lines.push(`📍 ${car.city}`);
+    if (car.mileage) lines.push(`🔢 ${fmt(car.mileage)} км`);
+    if (car.engine)  lines.push(`🔧 ${car.engine}`);
+    if (car.description) {
+        const desc = car.description.length > 120 ? car.description.slice(0, 120) + '…' : car.description;
+        lines.push(`\n📝 ${desc}`);
+    }
+    lines.push('', '👇 АвтоМаркет ПМР', getListingDeepLink(car.id));
+    return lines.join('\n');
 }
 
 function shareListing(carId) {
@@ -1719,9 +1728,8 @@ function closeShareSheet() {
 function shareToTelegram() {
     const carId = document.getElementById('shareSheet').dataset.carId;
     const car = cars.find(c => c.id === Number(carId));
-    const link = getListingDeepLink(carId);
     const text = getListingShareText(car);
-    const url = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`;
+    const url = `https://t.me/share/url?text=${encodeURIComponent(text)}`;
     tg.openTelegramLink(url);
     closeShareSheet();
 }
