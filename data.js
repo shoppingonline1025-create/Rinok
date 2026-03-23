@@ -562,7 +562,7 @@ const BRANDS_DATA = {
 const categoryNames = {
   car: '🚗 Легковой',
   truck: '🚚 Грузовой',
-  parts: '🔧 Комплектующие',
+  parts: '🔧 Запчасти',
   special: '🚜 Спецтехника',
   moto: '🏍 Мототехника',
   water: '🚤 Водный'
