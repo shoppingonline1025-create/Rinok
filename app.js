@@ -2965,7 +2965,7 @@ function renderFilterPage(f, key) {
                     <option value="moto"    ${ f?.category==='moto'   ?'selected':''}>Мото</option>
                     <option value="special" ${ f?.category==='special'?'selected':''}>Спецтехника</option>
                     <option value="parts"   ${ f?.category==='parts'  ?'selected':''}>Запчасти</option>
-                    <option value="boat"    ${ f?.category==='boat'   ?'selected':''}>Водный транспорт</option>
+                    <option value="water"   ${ f?.category==='water'  ?'selected':''}>Водный транспорт</option>
                 </select>
             </div>
             <div class="filter-form-row">
