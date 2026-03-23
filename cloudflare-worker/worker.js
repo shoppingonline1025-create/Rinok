@@ -1,10 +1,11 @@
 /**
  * AutoMarket — Cloudflare Worker
  *
- * Парсит Telegram WebApp initData, выдаёт Firebase Custom Token
- * с uid = String(telegramUserId).
+ * Проверяет подпись Telegram WebApp initData (HMAC-SHA256),
+ * выдаёт Firebase Custom Token с uid = String(telegramUserId).
  *
  * Переменные окружения (Secrets):
+ *   BOT_TOKEN               — токен Telegram-бота (от @BotFather)
  *   FIREBASE_SERVICE_ACCOUNT — содержимое service-account JSON из Firebase Console
  */
 
@@ -25,30 +26,103 @@ export default {
                 return corsResponse({ error: 'No initData' }, 400);
             }
 
-            // Парсим initData и достаём user.id
-            const params = new Map();
-            for (const part of initData.split('&')) {
-                const eqIdx = part.indexOf('=');
-                if (eqIdx === -1) continue;
-                const key = decodeURIComponent(part.slice(0, eqIdx));
-                const value = decodeURIComponent(part.slice(eqIdx + 1));
-                params.set(key, value);
-            }
-
-            const user = JSON.parse(params.get('user') || '{}');
-            if (!user.id) {
-                return corsResponse({ error: 'No user.id in initData' }, 400);
+            const { userId, reason, debug } = await verifyTelegramInitData(initData, env.BOT_TOKEN);
+            if (!userId) {
+                // debug-поля помогут понять причину hash_mismatch
+                return corsResponse({ error: 'Invalid or expired initData', reason, debug }, 401);
             }
 
             const serviceAccount = JSON.parse(env.FIREBASE_SERVICE_ACCOUNT);
-            const token = await createFirebaseCustomToken(String(user.id), serviceAccount);
+            const token = await createFirebaseCustomToken(String(userId), serviceAccount);
 
             return corsResponse({ token });
         } catch (e) {
-            return corsResponse({ error: 'Internal error' }, 500);
+            return corsResponse({ error: 'Internal error', detail: e.message }, 500);
         }
     }
 };
+
+// ─── Telegram initData verification ───────────────────────────────────────────
+
+async function verifyTelegramInitData(initData, botToken) {
+    if (!initData) return { userId: null, reason: 'no_initData' };
+    if (!botToken) return { userId: null, reason: 'no_botToken' };
+
+    const cleanToken = botToken.trim();
+
+    // Разбираем initData вручную (без URLSearchParams — чтобы контролировать декодирование)
+    const parts = initData.split('&');
+    let receivedHash = null;
+    const entries = [];
+
+    for (const part of parts) {
+        const eqIdx = part.indexOf('=');
+        if (eqIdx === -1) continue;
+        const key = decodeURIComponent(part.slice(0, eqIdx));
+        const value = decodeURIComponent(part.slice(eqIdx + 1));
+        if (key === 'hash') {
+            receivedHash = value;
+        } else {
+            entries.push([key, value]);
+        }
+    }
+
+    if (!receivedHash) return { userId: null, reason: 'no_hash' };
+
+    // data_check_string: отсортированные пары key=value через \n
+    const checkString = entries
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([k, v]) => `${k}=${v}`)
+        .join('\n');
+
+    const encoder = new TextEncoder();
+
+    // secret_key = HMAC-SHA256(bot_token, "WebAppData")
+    const secretKeyBase = await crypto.subtle.importKey(
+        'raw', encoder.encode('WebAppData'),
+        { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+    );
+    const secretKey = await crypto.subtle.sign('HMAC', secretKeyBase, encoder.encode(cleanToken));
+
+    // computed_hash = HMAC-SHA256(secret_key, data_check_string)
+    const hmacKey = await crypto.subtle.importKey(
+        'raw', secretKey,
+        { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+    );
+    const signature = await crypto.subtle.sign('HMAC', hmacKey, encoder.encode(checkString));
+
+    const computedHash = Array.from(new Uint8Array(signature))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+
+    if (computedHash !== receivedHash) {
+        return {
+            userId: null,
+            reason: 'hash_mismatch',
+            debug: {
+                tokenLength: cleanToken.length,
+                tokenFirst5: cleanToken.slice(0, 5),   // первые символы токена для проверки
+                tokenLast5:  cleanToken.slice(-5),      // последние символы токена
+                checkStringPreview: checkString.slice(0, 120),
+                computedHash,
+                receivedHash,
+            }
+        };
+    }
+
+    // Проверяем свежесть (не старше 24 часов)
+    const authDate = parseInt(entries.find(([k]) => k === 'auth_date')?.[1] || '0');
+    const now = Math.floor(Date.now() / 1000);
+    if (now - authDate > 86400) {
+        return { userId: null, reason: `expired`, debug: { ageSeconds: now - authDate } };
+    }
+
+    const userEntry = entries.find(([k]) => k === 'user');
+    const user = JSON.parse(userEntry?.[1] || '{}');
+    if (!user.id) return { userId: null, reason: 'no_user_id' };
+
+    return { userId: user.id, reason: null, debug: null };
+}
 
 // ─── Firebase Custom Token (JWT RS256) ────────────────────────────────────────
 
