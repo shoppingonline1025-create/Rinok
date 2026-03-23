@@ -1929,22 +1929,20 @@ function deleteListing(carId) {
         ]
     }, async function(buttonId) {
         if (buttonId === 'delete') {
+            // Удаляем из памяти и localStorage ДО вызова Firebase,
+            // чтобы real-time listener не перезалил машину обратно
+            cars = cars.filter(c => c.id !== carId);
+            DB.saveCars(cars);
+            if (currentUser.listings) {
+                currentUser.listings = currentUser.listings.filter(id => String(id) !== String(carId));
+                saveUser();
+            }
+
             try {
                 await deleteCarFromFirebase(carId);
             } catch(e) {
                 tg.showAlert('Ошибка удаления. Проверьте соединение и попробуйте снова.');
                 return;
-            }
-
-            // Удаляем из памяти (сохраняем все чужие объявления)
-            cars = cars.filter(c => c.id !== carId);
-            // Удаляем из localStorage (только метаданные)
-            DB.saveCars(cars);
-
-            // Удаляем из списка пользователя (id может быть числом или строкой)
-            if (currentUser.listings) {
-                currentUser.listings = currentUser.listings.filter(id => String(id) !== String(carId));
-                saveUser();
             }
 
             tg.showAlert('Объявление удалено', () => {});
